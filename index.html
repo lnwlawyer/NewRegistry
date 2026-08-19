@@ -682,35 +682,36 @@
                     )}
                     
                     {isLoading ? (
-                      <LoadingScreen sources={loadSources} />
-                    ) : (
-                      <>
-                        {activeTab === 'manual'       && renderManual()}
-                        {activeTab === 'archive'      && renderArchive()}
-                        {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
-                        {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
-                        {activeTab === 'legal_search' && <LegalSearchView />}
-                        {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
-                        {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
-                        {activeTab === 'favorites'    && (
-                          <FavoritesView
-                            bookmarks={bookmarks}
-                            onNavigate={item => { handleGlobalNavigate(item); }}
-                            onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
-                          />
-                        )}
-                        
-                        {/* 🌟 กล่องดันท้าย (Spacer) - เพื่อดันให้เนื้อหาส่วนสุดท้ายลอยขึ้นมาพ้นเมนูด้านล่างบนมือถือ */}
-                        {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court' || activeTab === 'chatbot') && (
-                          <div className="h-[88px] md:h-0 w-full shrink-0 pointer-events-none" />
-                        )}
-                      </>
-                    )}
-                  </main>
-                </div>
+                    <LoadingScreen sources={loadSources} />
+                  ) : (
+                    <>
+                      {activeTab === 'manual'       && renderManual()}
+                      {activeTab === 'archive'      && renderArchive()}
+                      {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
+                      {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
+                      {activeTab === 'legal_search' && <LegalSearchView />}
+                      {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
+                      {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
+                      {activeTab === 'favorites'    && (
+                        <FavoritesView
+                          bookmarks={bookmarks}
+                          onNavigate={item => { handleGlobalNavigate(item); }}
+                          onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
+                        />
+                      )}
+                      
+                      {/* 🌟 กล่องดันเนื้อหา (Spacer) สำหรับมือถือ - เพื่อไม่ให้เมนูด้านล่างบังเนื้อหาส่วนสุดท้าย */}
+                      {/* จะไม่แสดงในหน้า WebEmbedView หรือ Chatbot เพราะใช้ absolute position ไปแล้ว */}
+                      {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court' || activeTab === 'chatbot') && (
+                        <div className="h-[88px] md:h-0 w-full shrink-0 pointer-events-none" />
+                      )}
+                    </>
+                  )}
+                </main>
               </div>
+            </div>
 
-              {adminOpen && (
+            {adminOpen && (
                 <AdminModal
                   rawData={{ manual: rawManualRows, decision: rawDecisionRows, archive: rawArchiveRows, chatbot: rawChatbotRows }}
                   onReloadData={() => { loadDataFromSheets(sheetUrls, true); }}
