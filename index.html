@@ -42,8 +42,7 @@
     <!-- Babel สำหรับแปลง JSX ใน Browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<!-- 🌟 เอากฎ overflow-hidden ออกจาก body ដើម្បីให้ body อนุญาตให้เกิด scroll -->
-<body class="bg-slate-100 text-slate-800 antialiased">
+<body class="bg-slate-100 text-slate-800 antialiased overflow-hidden">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
@@ -60,7 +59,7 @@
         } from 'lucide-react';
 
         // ==========================================
-        // 0. Error Boundary — ป้องกัน crash ทั้งแอพ
+        // 0. Error Boundary
         // ==========================================
         class ErrorBoundary extends React.Component {
           constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -233,13 +232,11 @@
         const ListItem = ({ title, icon: Icon, emoji, imageUrl, onClick, bookmarkItem }) => { const { toggle, isBookmarked } = React.useContext(BookmarkCtx); const starred = bookmarkItem ? isBookmarked(bookmarkItem.id) : false; return ( <div className="relative group"> <button onClick={onClick} className="w-full min-h-[56px] flex items-center justify-between bg-[#F0FAF5] px-4 py-3 md:py-4 rounded-2xl border border-teal-100/50 hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] text-left pr-12"> <div className="flex items-center gap-4"> <IconDisplay imageUrl={imageUrl} emoji={emoji} defaultIcon={Icon} /> <span className="font-bold text-[#006655] text-[15px] md:text-base leading-tight break-words">{String(title || '(ไม่มีชื่อ)')}</span> </div> <ChevronRight className="text-slate-400 shrink-0 ml-2" size={22} /> </button> {bookmarkItem && ( <button onClick={e => { e.stopPropagation(); toggle(bookmarkItem); }} className={`absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${starred ? 'text-amber-400 bg-amber-50' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-50'}`} aria-label={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} title={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} > <Star size={16} fill={starred ? 'currentColor' : 'none'} /> </button> )} </div> ); };
         const VisitedCtx = React.createContext({ markVisited: () => {}, isVisited: () => false });
 
-        // ==========================================
-        // 3. ContentSection (อัปเดตช่องไฟภาษาไทยและเอาขอบล็อกทิ้ง)
-        // ==========================================
+        // ปลดล็อก overflow เพื่อให้กล่องข้อความขยายไปตามธรรมชาติ ให้ <main> เลื่อนอันเดียว
         const ContentSection = ({ title, icon: Icon, emoji, entries }) => { 
           const { markVisited, isVisited } = React.useContext(VisitedCtx); 
           return ( 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col"> 
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col"> 
               <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold shrink-0"> 
                 {emoji ? <span className="text-xl">{emoji}</span> : <Icon size={18} />} 
                 <h2>{String(title || '')}</h2> 
@@ -252,7 +249,10 @@
                     {entry.text && (
                       <div 
                         className="text-slate-700 whitespace-pre-wrap leading-relaxed text-justify break-words"
-                        style={{ textJustify: 'inter-character', wordBreak: 'break-word' }}
+                        style={{ 
+                          textJustify: 'inter-character',
+                          wordBreak: 'break-word'
+                        }}
                       >
                         {String(entry.text)}
                       </div>
@@ -278,19 +278,13 @@
           ); 
         };
 
-        const LoadingScreen = ({ sources, onReset }) => ( <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-white min-h-[60vh]"> <div className="relative"> <div className="w-20 h-20 rounded-full border-4 border-teal-100 border-t-[#006655] animate-spin" /> <Database size={28} className="absolute inset-0 m-auto text-[#006655]" /> </div> <div className="text-center"> <p className="font-bold text-[#006655] text-lg mb-1">กำลังโหลดข้อมูล...</p> <p className="text-slate-400 text-sm">กรุณารอสักครู่ หากค้างนานเกินไปโปรดกดรีเซ็ต</p> </div> <div className="w-full max-w-sm space-y-2"> {sources.map(s => ( <div key={s.key} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3"> {s.status === 'loading' && <Loader2 size={16} className="text-teal-500 animate-spin shrink-0" />} {s.status === 'done' && <CheckCircle2 size={16} className="text-green-500 shrink-0" />} {s.status === 'error' && <XCircle size={16} className="text-rose-500 shrink-0" />} {s.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-slate-200 shrink-0" />} <span className="text-sm text-slate-600">{s.label}</span> </div> ))} </div> <button onClick={onReset} className="mt-4 text-sm text-slate-400 hover:text-rose-500 underline decoration-dotted"> รีเซ็ตและล้าง Cache </button> </div> );
+        const LoadingScreen = ({ sources }) => ( <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-white"> <div className="relative"> <div className="w-20 h-20 rounded-full border-4 border-teal-100 border-t-[#006655] animate-spin" /> <Database size={28} className="absolute inset-0 m-auto text-[#006655]" /> </div> <div className="text-center"> <p className="font-bold text-[#006655] text-lg mb-1">กำลังโหลดข้อมูล...</p> <p className="text-slate-400 text-sm">กรุณารอสักครู่</p> </div> <div className="w-full max-w-sm space-y-2"> {sources.map(s => ( <div key={s.key} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3"> {s.status === 'loading' && <Loader2 size={16} className="text-teal-500 animate-spin shrink-0" />} {s.status === 'done' && <CheckCircle2 size={16} className="text-green-500 shrink-0" />} {s.status === 'error' && <XCircle size={16} className="text-rose-500 shrink-0" />} {s.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-slate-200 shrink-0" />} <span className="text-sm text-slate-600">{s.label}</span> </div> ))} </div> </div> );
 
         // ==========================================
         // Admin Modal
         // ==========================================
         const AdminModal = ({ rawData, onReloadData, sheetUrls, onUpdateUrls, onClose }) => {
           const [activeSection, setActiveSection] = useState('urls'); const [editedUrls, setEditedUrls] = useState({ ...sheetUrls }); const [savedFeedback, setSavedFeedback] = useState(''); const [expandedTable, setExpandedTable] = useState(null); const [tableSearch, setTableSearch] = useState(''); const [analyticsData] = useState(() => analyticsLoad());
-          
-          // ระบบติดตั้ง PWA
-          const [deferredPrompt, setDeferredPrompt] = useState(window.pwaDeferredPrompt);
-          useEffect(() => { const handler = (e) => setDeferredPrompt(e.detail); window.addEventListener('pwa-prompt-available', handler); return () => window.removeEventListener('pwa-prompt-available', handler); }, []);
-          const handleInstall = async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') { setDeferredPrompt(null); window.pwaDeferredPrompt = null; } } else { alert('อุปกรณ์หรือเบราว์เซอร์ของคุณอาจไม่รองรับการติดตั้งแอปผ่านปุ่มนี้ หรือคุณได้ติดตั้งแอปนี้ไปแล้ว\n\nวิธีติดตั้งด้วยตัวเอง:\niOS: กดปุ่มแชร์ (Share) -> เพิ่มไปยังหน้าจอโฮม (Add to Home Screen)\nAndroid: กดเมนู 3 จุดมุมขวาบน -> เพิ่มลงในหน้าจอหลัก (Install App)'); } };
-
           const handleSaveUrls = () => { onUpdateUrls(editedUrls); setSavedFeedback('บันทึกแล้ว! กด Reload เพื่อโหลดข้อมูลใหม่'); setTimeout(() => setSavedFeedback(''), 4000); };
           const hasUrlChanged = JSON.stringify(editedUrls) !== JSON.stringify(sheetUrls);
           const topPages = useMemo(() => { const counts = {}; analyticsData.pageviews.forEach(pv => { const key = pv.title || pv.tab; counts[key] = (counts[key] || 0) + 1; }); return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10); }, [analyticsData]);
@@ -308,7 +302,7 @@
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="bg-orange-100 p-2 rounded-xl"><Settings size={20} className="text-orange-600" /></div>
-                    <div><h2 className="font-bold text-slate-800 text-base">ตั้งค่า / Admin</h2><p className="text-xs text-slate-400">จัดการระบบและตรวจสอบข้อมูล</p></div>
+                    <div><h2 className="font-bold text-slate-800 text-base">ตั้งค่า / Admin</h2><p className="text-xs text-slate-400">จัดการ URL Google Sheets และตรวจสอบข้อมูล</p></div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => { cacheClear(); onReloadData(true); }} className="flex items-center gap-1.5 bg-[#006655] text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-teal-700 transition-colors"><RefreshCw size={14} /><span>Reload</span></button>
@@ -319,40 +313,14 @@
                   <button onClick={() => setActiveSection('urls')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'urls' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Link size={14} /><span>URL Sheets</span></button>
                   <button onClick={() => setActiveSection('inspect')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'inspect' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Eye size={14} /><span>ตรวจสอบข้อมูล</span></button>
                   <button onClick={() => setActiveSection('analytics')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'analytics' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><BarChart2 size={14} /><span>Analytics</span></button>
-                  <button onClick={() => setActiveSection('install')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'install' ? 'bg-white text-[#006655] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Globe size={14} /><span>ติดตั้งแอป</span></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                     {activeSection === 'urls' && ( <> <p className="text-sm text-slate-500">แก้ไข URL ของ Google Sheets แต่ละชุดข้อมูล จากนั้นกด "บันทึก" และ "Reload"</p> {Object.entries(URL_LABELS).map(([key, label]) => { const changed = editedUrls[key] !== sheetUrls[key]; return ( <div key={key} className={`bg-white rounded-2xl border p-4 shadow-sm transition-all ${changed ? 'border-orange-300 bg-orange-50/30' : 'border-slate-200'}`}> <div className="flex items-center justify-between mb-2"> <span className="font-bold text-slate-700 text-sm">{label}</span> {changed && <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">มีการแก้ไข</span>} </div> <textarea value={editedUrls[key] || ''} onChange={e => setEditedUrls(prev => ({ ...prev, [key]: e.target.value }))} rows={2} className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#006655] resize-none" placeholder="วาง URL ที่นี่..." /> <button onClick={() => setEditedUrls(prev => ({ ...prev, [key]: DEFAULT_URLS[key] }))} className="mt-2 text-xs text-slate-400 hover:text-slate-600 underline"> รีเซ็ตเป็นค่าเริ่มต้น </button> </div> ); })} <div className="flex items-center gap-3 pb-2"> <button onClick={handleSaveUrls} disabled={!hasUrlChanged} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-md ${hasUrlChanged ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}> <Save size={16} /><span>บันทึก URL</span> </button> {savedFeedback && ( <div className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-3 rounded-2xl text-sm font-medium border border-green-200"> <CheckCircle2 size={16} /><span>{savedFeedback}</span> </div> )} </div> </> )}
-                    {activeSection === 'install' && (
-                      <div className="space-y-6">
-                        <div className="text-center p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                          <div className="w-20 h-20 bg-white rounded-2xl shadow-md mx-auto mb-4 flex items-center justify-center border border-slate-100"><Globe size={40} className="text-[#006655]" /></div>
-                          <h3 className="font-bold text-xl text-slate-800 mb-2">ติดตั้ง Land Registry App</h3>
-                          <p className="text-sm text-slate-500 mb-6">คุณสามารถติดตั้งแอปนี้ลงบนหน้าจอโฮมเพื่อใช้งานได้เหมือนแอปพลิเคชันปกติ (ไม่ต้องเข้าผ่านเบราว์เซอร์)</p>
-                          <button onClick={handleInstall} className="bg-[#006655] hover:bg-teal-700 text-white px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 mx-auto">
-                            <ArrowDownToLine size={20} /><span>ติดตั้งลงเครื่อง (Install)</span>
-                          </button>
-                        </div>
-                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
-                          <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2"><Info size={18} />วิธีติดตั้งแอปแบบไม่ง้อปุ่ม</h4>
-                          <ul className="text-sm text-blue-700 space-y-2 list-disc pl-5">
-                            <li><strong>iPhone / iPad (Safari):</strong> กดปุ่ม "แชร์" (สี่เหลี่ยมมีลูกศรชี้ขึ้น) ด้านล่างหน้าจอ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</li>
-                            <li><strong>Android (Chrome):</strong> กดไอคอน 3 จุดที่มุมขวาบน แล้วเลือก "เพิ่มลงในหน้าจอหลัก" (Install app / Add to Home screen)</li>
-                          </ul>
-                        </div>
-                      </div>
-                    )}
                 </div>
               </div>
             </div>
           );
         };
-
-        const ArrowDownToLine = ({ size = 24, className = "" }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/>
-          </svg>
-        );
 
         // ==========================================
         // Views
@@ -369,13 +337,13 @@
             <div className="p-4 md:p-6 animate-in fade-in flex flex-col">
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 shrink-0"><div className="flex items-center gap-3 mb-1 text-indigo-800"><Cpu size={22} /><h2 className="font-bold text-lg">Decision Support</h2></div><p className="text-sm text-indigo-600">วิเคราะห์ข้อเท็จจริงตามกฎเงื่อนไข รองรับ AND/OR, Range, ตัวเลข</p></div>
               <div className="flex flex-col md:flex-row gap-6">
-                <div className="space-y-4 md:w-1/3 shrink-0">
+                <div className="space-y-4 md:w-1/3 shrink-0 pr-1">
                   <div><label className="block text-sm font-semibold text-slate-700 mb-1">ประเภทคำขอ</label><select className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={selectedReq} onChange={e => { setSelectedReq(e.target.value); setUserInputs({}); setAnalysisResult(null); }}> <option value="">-- เลือกประเภทคำขอ --</option> {requestTypes.map(rt => <option key={rt} value={rt}>{String(rt)}</option>)} </select></div>
                   {dynamicFields.map(field => ( <div key={field.name} className="animate-in slide-in-from-top-2"> <label className="block text-sm font-semibold text-slate-700 mb-1">{String(field.name)}</label> {field.type === 'select' ? ( <select className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={userInputs[field.name] || ''} onChange={e => { setUserInputs(prev => ({ ...prev, [field.name]: e.target.value })); setAnalysisResult(null); }}> <option value="">-- ระบุข้อมูล --</option> {field.options.map(opt => <option key={opt} value={opt}>{String(opt)}</option>)} </select> ) : ( <input type={field.type === 'number' ? 'number' : 'text'} placeholder={field.type === 'number' ? 'ระบุตัวเลข...' : 'ระบุข้อความ...'} className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={userInputs[field.name] || ''} onChange={e => { setUserInputs(prev => ({ ...prev, [field.name]: e.target.value })); setAnalysisResult(null); }} /> )} </div> ))}
                   <button onClick={handleAnalyze} disabled={!selectedReq || Object.keys(userInputs).length === 0 || isAnalyzing} className={`w-full py-4 min-h-[52px] rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all mt-4 text-base ${(!selectedReq || Object.keys(userInputs).length === 0) ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-[0.98]'}`}> {isAnalyzing ? <><Loader2 size={20} className="animate-spin" /><span>กำลังประมวลผล...</span></> : <><ListChecks size={20} /><span>วิเคราะห์ผล</span></>} </button>
-                  {selectedReq && ( <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mt-4"> <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Operators ที่รองรับ</p> <div className="flex flex-wrap gap-1"> {Object.entries(OP_LABELS).map(([k, v]) => ( <span key={k} className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-500 font-mono"> {v} {k} </span> ))} </div> </div> )}
+                  {selectedReq && ( <div className="bg-slate-50 border border-slate-200 rounded-xl p-3"> <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Operators ที่รองรับ</p> <div className="flex flex-wrap gap-1"> {Object.entries(OP_LABELS).map(([k, v]) => ( <span key={k} className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-500 font-mono"> {v} {k} </span> ))} </div> </div> )}
                 </div>
-                <div className="md:w-2/3 flex-1 space-y-3">
+                <div className="md:w-2/3 flex-1 pr-1 space-y-3">
                   {analysisResult && analysisResult !== 'not_found' && (() => { const status = analysisResult.status || 'info'; const StatusIcon = StatusIconMap[status] || Info; const borderBg = StatusColorMap[status] || StatusColorMap.info; const textColor = StatusTextMap[status] || StatusTextMap.info; return ( <div className="space-y-3 animate-in slide-in-from-bottom-4 fade-in duration-300"> <div className={`border rounded-2xl p-5 shadow-sm ${borderBg}`}> <h3 className={`font-bold text-lg flex items-center gap-2 mb-3 ${textColor}`}> <StatusIcon size={22} />{String(analysisResult.diagnosis || 'ผลการพิจารณา')} </h3> {analysisResult.summary && <p className={`mb-3 pb-3 border-b border-current/20 font-medium ${textColor}`}>{String(analysisResult.summary)}</p>} {analysisResult.reason && <p className="text-sm text-slate-600 leading-relaxed">{String(analysisResult.reason)}</p>} </div> {analysisResult.reference && ( <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Scale size={12} />กฎหมายอ้างอิง</p> <p className="text-sm text-slate-700 leading-relaxed">{String(analysisResult.reference)}</p> </div> )} {analysisResult.nextStep && ( <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-teal-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><ChevronRight size={12} />ขั้นตอนถัดไป</p> <p className="text-sm text-teal-800 leading-relaxed">{String(analysisResult.nextStep)}</p> </div> )} {analysisResult.documents?.length > 0 && ( <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} />เอกสารที่ต้องใช้</p> <ul className="space-y-1.5"> {analysisResult.documents.map((doc, i) => ( <li key={i} className="flex items-start gap-2 text-sm text-slate-700"> <CheckCircle size={14} className="text-green-500 shrink-0 mt-0.5" />{String(doc)} </li> ))} </ul> </div> )} {analysisResult.ruleId && ( <p className="text-[11px] text-slate-400 text-right px-1">Rule ID: {analysisResult.ruleId}</p> )} </div> ); })()}
                   {analysisResult === 'not_found' && ( <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-700 animate-in fade-in"> <div className="flex items-center gap-2 font-bold mb-1"><AlertCircle size={20} />ไม่พบกฎที่ตรงกับเงื่อนไข</div> <p className="text-sm">ลองเปลี่ยนตัวเลือก หรือตรวจสอบข้อมูลใน Sheets</p> </div> )}
                   {!analysisResult && selectedReq && dynamicFields.length > 0 && ( <div className="text-center py-12 text-slate-400"> <ListChecks size={36} className="mx-auto mb-3 text-slate-200" /> <p>กรอกข้อมูลและกด "วิเคราะห์ผล"</p> </div> )}
@@ -391,8 +359,7 @@
           const handleSend = (e) => { e.preventDefault(); if (!input.trim()) return; const userMsg = input.trim(); setMessages(prev => [...prev, { sender: 'user', text: userMsg }]); setInput(''); setTimeout(() => { let bestMatch = null, maxScore = 0; const lowerInput = userMsg.toLowerCase(); chatbotData.filter(d => d.category === selectedCategory).forEach(item => { let score = 0; item.keywords.forEach(kw => { if (lowerInput.includes(kw)) score++; }); if (score > maxScore) { maxScore = score; bestMatch = item.answer; } }); if (!bestMatch && onMiss) onMiss(userMsg, selectedCategory); setMessages(prev => [...prev, { sender: 'bot', text: String(bestMatch || 'ไม่พบข้อมูลที่ตรงกับคำถามของคุณในหมวดหมู่นี้ค่ะ') }]); }, 500); };
 
           return (
-            // แชทบอทยังคงล็อคความสูงไว้เพื่อสร้างกล่องแชท
-            <div className="flex-1 flex flex-col bg-slate-50/50" style={{ height: 'calc(100vh - 136px)' }}>
+            <div className="absolute top-0 left-0 right-0 bottom-[72px] md:bottom-0 flex flex-col bg-slate-50/50 z-0 animate-in fade-in">
               <div className="bg-[#006655] text-white p-4 shadow-md shrink-0"> <div className="flex items-center gap-3 mb-3"> <div className="bg-white/20 p-2 rounded-full"><Bot size={24} /></div> <h2 className="font-bold text-lg">Chatbot ถาม-ตอบ</h2> </div> {categories.length > 0 && ( <select className="w-full bg-[#005544] text-white p-2 rounded-xl text-sm border border-teal-400/30 outline-none" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}> {categories.map(cat => <option key={cat} value={cat}>{String(cat)}</option>)} </select> )} </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4"> {messages.map((msg, idx) => ( <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-[#006655] text-white' : 'bg-white text-slate-800 shadow-sm border border-slate-200'}`}> <div className="whitespace-pre-wrap">{String(msg.text)}</div> </div> </div> ))} <div ref={messagesEndRef} /> </div>
               <form onSubmit={handleSend} className="p-3 bg-white border-t flex gap-2 items-center shrink-0"> <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="พิมพ์ข้อความ..." className="flex-1 bg-slate-100 border rounded-full px-4 py-3 min-h-[44px] outline-none focus:ring-2 focus:ring-[#006655] text-base" /> <button type="submit" className="bg-[#006655] text-white w-11 h-11 flex items-center justify-center rounded-full hover:bg-teal-700 active:scale-95 transition-all shrink-0"><Send size={20} /></button> </form>
@@ -436,9 +403,6 @@
           );
         };
 
-        // ==========================================
-        // 🌟 Web Embed View
-        // ==========================================
         const WebEmbedView = ({ url, title, icon: Icon = Globe, theme = 'purple' }) => {
           const [isLoading, setIsLoading] = useState(true);
 
@@ -470,10 +434,6 @@
           );
         };
 
-
-        // ==========================================
-        // Bottom / Side Navigation
-        // ==========================================
         const NAV_ITEMS = [
           { id: 'manual',       label: 'คู่มือ',   Icon: BookOpen,      color: 'teal'   },
           { id: 'archive',      label: 'คลัง',     Icon: Library,       color: 'blue'   },
@@ -525,9 +485,6 @@
           </nav>
         );
 
-        // ==========================================
-        // 5. Main App
-        // ==========================================
         function App() {
           const [activeTab, setActiveTab]       = useState('manual');
           const [adminOpen, setAdminOpen]       = useState(false);
@@ -566,50 +523,18 @@
 
           const abortRef = useRef(null);
 
-          const fetchWithTimeout = async (resource, options = {}) => {
-            const { timeout = 15000 } = options;
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            const response = await fetch(resource, { ...options, signal: options.signal || controller.signal });
-            clearTimeout(id);
-            return response;
-          };
-
-          const fetchCSV = async (cacheKey, originalUrl, signal, forceRefresh) => {
-            if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return cached; }
-            let fetchUrl = originalUrl.includes('?') ? `${originalUrl}&_t=${Date.now()}` : `${originalUrl}?_t=${Date.now()}`;
-            
-            try {
-              const r = await fetchWithTimeout(fetchUrl, { signal, timeout: 8000 });
-              if (!r.ok) throw new Error(`HTTP ${r.status}`);
-              const text = await r.text();
-              const rows = parseCSV(text);
-              cacheSet(cacheKey, rows);
-              return rows;
-            } catch (err) {
-              if (err.name === 'AbortError' && signal.aborted) throw err;
-              console.warn(`[Fallback] Primary fetch failed for ${cacheKey}, trying proxy...`, err);
-              const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fetchUrl);
-              const r2 = await fetchWithTimeout(proxyUrl, { signal, timeout: 15000 });
-              if (!r2.ok) throw new Error(`Proxy HTTP ${r2.status}`);
-              const text2 = await r2.text();
-              const rows2 = parseCSV(text2);
-              cacheSet(cacheKey, rows2);
-              return rows2;
-            }
-          };
-
           const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false) => {
             if (abortRef.current) abortRef.current.abort(); const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
             setIsLoading(true); setLoadError(false);
             const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
             setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
-            
+            const fetchCSV = async (cacheKey, url) => { if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return cached; } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const rows = parseCSV(await r.text()); cacheSet(cacheKey, rows); return rows; };
+
             try {
-              updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual, signal, forceRefresh)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
-              if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision, signal, forceRefresh)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('decision', 'error'); }
-              if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive, signal, forceRefresh)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('archive', 'error'); }
-              if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url, signal, forceRefresh); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
+              updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
+              if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('decision', 'error'); }
+              if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('archive', 'error'); }
+              if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
             } catch (err) { if (err.name !== 'AbortError') { console.error(err); setLoadError(true); } } finally { if (!signal.aborted) setIsLoading(false); }
           }, [sheetUrls]);
 
@@ -711,14 +636,12 @@
             <ErrorBoundary>
             <BookmarkCtx.Provider value={bookmarkCtxVal}>
             <VisitedCtx.Provider value={visitedCtxVal}>
-            {/* 🌟 เปิดให้เลื่อนหน้าจอที่ระดับนอกสุด */}
-            <div lang="th" className="bg-slate-100 font-sans md:p-4 lg:p-8 flex justify-center items-start">
-              <div className="w-full max-w-2xl md:max-w-5xl lg:max-w-7xl bg-white shadow-xl relative flex flex-col md:flex-row border border-slate-200" style={{ minHeight: '100dvh' }}>
+            <div lang="th" className="min-h-screen bg-slate-100 font-sans md:p-4 lg:p-8 flex justify-center items-start">
+              <div className="w-full max-w-2xl md:max-w-5xl lg:max-w-7xl bg-white min-h-screen md:min-h-[85vh] md:h-[85vh] md:rounded-3xl shadow-xl relative flex flex-col md:flex-row overflow-hidden border border-slate-200">
 
                 <BottomNav activeTab={activeTab} onSelect={handleNavSelect} bookmarkCount={bookmarks.length} />
 
-                {/* 🌟 เผื่อพื้นที่ให้ BottomNav โดยใช้ pb-[72px] สำหรับมือถือ */}
-                <div className="flex-1 flex flex-col order-1 md:order-2 relative pb-[72px] md:pb-0 min-h-0">
+                <div className="flex-1 flex flex-col order-1 md:order-2 h-[100dvh] md:h-full overflow-hidden relative">
                   <Header
                     title={getHeaderTitle()}
                     onBack={handleGoBack}
@@ -739,8 +662,8 @@
                     }
                   />
 
-                  {/* 🌟 ให้ส่วนเนื้อหาหลักเป็นแบบไหลลงธรรมดา (ไม่จำกัดความสูงด้วย flex-1 แล้ว) เพื่อให้การ Scroll เกิดขึ้นที่ระดับ Body/HTML */}
-                  <main className="bg-white relative">
+                  {/* กล่องนี้เป็น <main> ที่จะทำหน้าที่ Scroll ให้ทุกหน้า (ปลด overflow-y-auto จากกล่องย่อยหมดแล้ว) */}
+                  <main className="flex-1 overflow-y-auto bg-white relative flex flex-col">
                     {newDataNotice && (
                       <div className="bg-teal-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm animate-in slide-in-from-top-2">
                         <div className="flex items-center gap-2">
@@ -759,35 +682,36 @@
                     )}
                     
                     {isLoading ? (
-                      <LoadingScreen sources={loadSources} onReset={() => { cacheClear(); window.location.reload(); }} />
-                    ) : (
-                      <>
-                        {activeTab === 'manual'       && renderManual()}
-                        {activeTab === 'archive'      && renderArchive()}
-                        {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
-                        {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
-                        {activeTab === 'legal_search' && <LegalSearchView />}
-                        {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
-                        {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
-                        {activeTab === 'favorites'    && (
-                          <FavoritesView
-                            bookmarks={bookmarks}
-                            onNavigate={item => { handleGlobalNavigate(item); }}
-                            onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
-                          />
-                        )}
-                        
-                        {/* 🌟 Spacer ดันเนื้อหา (ไม่ต้องเผื่อ 88px แล้วเพราะใช้ padding แทน ลดเหลือ 20px ให้พอดูมีพื้นที่ว่างด้านล่างสุด) */}
-                        {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court' || activeTab === 'chatbot') && (
-                          <div className="h-[20px] w-full shrink-0 pointer-events-none" />
-                        )}
-                      </>
-                    )}
-                  </main>
-                </div>
+                    <LoadingScreen sources={loadSources} />
+                  ) : (
+                    <>
+                      {activeTab === 'manual'       && renderManual()}
+                      {activeTab === 'archive'      && renderArchive()}
+                      {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
+                      {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
+                      {activeTab === 'legal_search' && <LegalSearchView />}
+                      {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
+                      {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
+                      {activeTab === 'favorites'    && (
+                        <FavoritesView
+                          bookmarks={bookmarks}
+                          onNavigate={item => { handleGlobalNavigate(item); }}
+                          onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
+                        />
+                      )}
+                      
+                      {/* 🌟 กล่องดันเนื้อหา (Spacer) สำหรับมือถือ - เพื่อไม่ให้เมนูด้านล่างบังเนื้อหาส่วนสุดท้าย */}
+                      {/* จะไม่แสดงในหน้า WebEmbedView หรือ Chatbot เพราะใช้ absolute position ไปแล้ว */}
+                      {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court' || activeTab === 'chatbot') && (
+                        <div className="h-[88px] md:h-0 w-full shrink-0 pointer-events-none" />
+                      )}
+                    </>
+                  )}
+                </main>
               </div>
+            </div>
 
-              {adminOpen && (
+            {adminOpen && (
                 <AdminModal
                   rawData={{ manual: rawManualRows, decision: rawDecisionRows, archive: rawArchiveRows, chatbot: rawChatbotRows }}
                   onReloadData={() => { loadDataFromSheets(sheetUrls, true); }}
