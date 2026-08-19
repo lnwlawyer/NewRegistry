@@ -45,7 +45,6 @@
 <body class="bg-slate-100 text-slate-800 antialiased overflow-hidden">
     <div id="root"></div>
 
-    <!-- 🌟 โหลดแอปผ่าน Babel โดยเปิดให้รองรับ jsx-runtime ได้อย่างสมบูรณ์ -->
     <script type="text/babel" data-type="module">
         import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
         import { createRoot } from 'react-dom/client';
@@ -233,12 +232,12 @@
         const ListItem = ({ title, icon: Icon, emoji, imageUrl, onClick, bookmarkItem }) => { const { toggle, isBookmarked } = React.useContext(BookmarkCtx); const starred = bookmarkItem ? isBookmarked(bookmarkItem.id) : false; return ( <div className="relative group"> <button onClick={onClick} className="w-full min-h-[56px] flex items-center justify-between bg-[#F0FAF5] px-4 py-3 md:py-4 rounded-2xl border border-teal-100/50 hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] text-left pr-12"> <div className="flex items-center gap-4"> <IconDisplay imageUrl={imageUrl} emoji={emoji} defaultIcon={Icon} /> <span className="font-bold text-[#006655] text-[15px] md:text-base leading-tight break-words">{String(title || '(ไม่มีชื่อ)')}</span> </div> <ChevronRight className="text-slate-400 shrink-0 ml-2" size={22} /> </button> {bookmarkItem && ( <button onClick={e => { e.stopPropagation(); toggle(bookmarkItem); }} className={`absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${starred ? 'text-amber-400 bg-amber-50' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-50'}`} aria-label={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} title={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} > <Star size={16} fill={starred ? 'currentColor' : 'none'} /> </button> )} </div> ); };
         const VisitedCtx = React.createContext({ markVisited: () => {}, isVisited: () => false });
 
-        // ปลดล็อก overflow ภายในและใช้ flex-col เพื่อให้ตารางหน้าขยายตัวได้และปล่อยให้หน้าต่างหลักจัดการการเลื่อนแทน
+        // ปลดล็อก overflow เพื่อให้กล่องข้อความขยายไปตามธรรมชาติ ให้ <main> เลื่อนอันเดียว
         const ContentSection = ({ title, icon: Icon, emoji, entries }) => { 
           const { markVisited, isVisited } = React.useContext(VisitedCtx); 
           return ( 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col"> 
-              <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold shrink-0 rounded-t-2xl"> 
+              <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold shrink-0"> 
                 {emoji ? <span className="text-xl">{emoji}</span> : <Icon size={18} />} 
                 <h2>{String(title || '')}</h2> 
               </div> 
@@ -250,7 +249,10 @@
                     {entry.text && (
                       <div 
                         className="text-slate-700 whitespace-pre-wrap leading-relaxed text-justify break-words"
-                        style={{ textJustify: 'inter-character', wordBreak: 'break-word' }}
+                        style={{ 
+                          textJustify: 'inter-character',
+                          wordBreak: 'break-word'
+                        }}
                       >
                         {String(entry.text)}
                       </div>
@@ -323,7 +325,6 @@
         // ==========================================
         // Views
         // ==========================================
-        // ปลดล็อก overflow เพื่อให้กล่องขยายตามเนื้อหาจริง แก้ปัญหาการเลื่อนบนมือถือ
         const DecisionSupportView = ({ decisionRules }) => { 
           const [selectedReq, setSelectedReq]       = useState(''); const [userInputs, setUserInputs]         = useState({}); const [analysisResult, setAnalysisResult] = useState(null); const [isAnalyzing, setIsAnalyzing]       = useState(false);
           const requestTypes  = useMemo(() => [...new Set(decisionRules.map(r => r.requestType))], [decisionRules]);
@@ -335,14 +336,14 @@
           return (
             <div className="p-4 md:p-6 animate-in fade-in flex flex-col">
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 shrink-0"><div className="flex items-center gap-3 mb-1 text-indigo-800"><Cpu size={22} /><h2 className="font-bold text-lg">Decision Support</h2></div><p className="text-sm text-indigo-600">วิเคราะห์ข้อเท็จจริงตามกฎเงื่อนไข รองรับ AND/OR, Range, ตัวเลข</p></div>
-              <div className="flex flex-col md:flex-row gap-6 flex-1">
+              <div className="flex flex-col md:flex-row gap-6">
                 <div className="space-y-4 md:w-1/3 shrink-0 pr-1">
                   <div><label className="block text-sm font-semibold text-slate-700 mb-1">ประเภทคำขอ</label><select className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={selectedReq} onChange={e => { setSelectedReq(e.target.value); setUserInputs({}); setAnalysisResult(null); }}> <option value="">-- เลือกประเภทคำขอ --</option> {requestTypes.map(rt => <option key={rt} value={rt}>{String(rt)}</option>)} </select></div>
                   {dynamicFields.map(field => ( <div key={field.name} className="animate-in slide-in-from-top-2"> <label className="block text-sm font-semibold text-slate-700 mb-1">{String(field.name)}</label> {field.type === 'select' ? ( <select className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={userInputs[field.name] || ''} onChange={e => { setUserInputs(prev => ({ ...prev, [field.name]: e.target.value })); setAnalysisResult(null); }}> <option value="">-- ระบุข้อมูล --</option> {field.options.map(opt => <option key={opt} value={opt}>{String(opt)}</option>)} </select> ) : ( <input type={field.type === 'number' ? 'number' : 'text'} placeholder={field.type === 'number' ? 'ระบุตัวเลข...' : 'ระบุข้อความ...'} className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={userInputs[field.name] || ''} onChange={e => { setUserInputs(prev => ({ ...prev, [field.name]: e.target.value })); setAnalysisResult(null); }} /> )} </div> ))}
                   <button onClick={handleAnalyze} disabled={!selectedReq || Object.keys(userInputs).length === 0 || isAnalyzing} className={`w-full py-4 min-h-[52px] rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all mt-4 text-base ${(!selectedReq || Object.keys(userInputs).length === 0) ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-[0.98]'}`}> {isAnalyzing ? <><Loader2 size={20} className="animate-spin" /><span>กำลังประมวลผล...</span></> : <><ListChecks size={20} /><span>วิเคราะห์ผล</span></>} </button>
                   {selectedReq && ( <div className="bg-slate-50 border border-slate-200 rounded-xl p-3"> <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Operators ที่รองรับ</p> <div className="flex flex-wrap gap-1"> {Object.entries(OP_LABELS).map(([k, v]) => ( <span key={k} className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-500 font-mono"> {v} {k} </span> ))} </div> </div> )}
                 </div>
-                <div className="md:w-2/3 flex-1 pr-1 pb-4 space-y-3">
+                <div className="md:w-2/3 flex-1 pr-1 space-y-3">
                   {analysisResult && analysisResult !== 'not_found' && (() => { const status = analysisResult.status || 'info'; const StatusIcon = StatusIconMap[status] || Info; const borderBg = StatusColorMap[status] || StatusColorMap.info; const textColor = StatusTextMap[status] || StatusTextMap.info; return ( <div className="space-y-3 animate-in slide-in-from-bottom-4 fade-in duration-300"> <div className={`border rounded-2xl p-5 shadow-sm ${borderBg}`}> <h3 className={`font-bold text-lg flex items-center gap-2 mb-3 ${textColor}`}> <StatusIcon size={22} />{String(analysisResult.diagnosis || 'ผลการพิจารณา')} </h3> {analysisResult.summary && <p className={`mb-3 pb-3 border-b border-current/20 font-medium ${textColor}`}>{String(analysisResult.summary)}</p>} {analysisResult.reason && <p className="text-sm text-slate-600 leading-relaxed">{String(analysisResult.reason)}</p>} </div> {analysisResult.reference && ( <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Scale size={12} />กฎหมายอ้างอิง</p> <p className="text-sm text-slate-700 leading-relaxed">{String(analysisResult.reference)}</p> </div> )} {analysisResult.nextStep && ( <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-teal-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><ChevronRight size={12} />ขั้นตอนถัดไป</p> <p className="text-sm text-teal-800 leading-relaxed">{String(analysisResult.nextStep)}</p> </div> )} {analysisResult.documents?.length > 0 && ( <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} />เอกสารที่ต้องใช้</p> <ul className="space-y-1.5"> {analysisResult.documents.map((doc, i) => ( <li key={i} className="flex items-start gap-2 text-sm text-slate-700"> <CheckCircle size={14} className="text-green-500 shrink-0 mt-0.5" />{String(doc)} </li> ))} </ul> </div> )} {analysisResult.ruleId && ( <p className="text-[11px] text-slate-400 text-right px-1">Rule ID: {analysisResult.ruleId}</p> )} </div> ); })()}
                   {analysisResult === 'not_found' && ( <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-700 animate-in fade-in"> <div className="flex items-center gap-2 font-bold mb-1"><AlertCircle size={20} />ไม่พบกฎที่ตรงกับเงื่อนไข</div> <p className="text-sm">ลองเปลี่ยนตัวเลือก หรือตรวจสอบข้อมูลใน Sheets</p> </div> )}
                   {!analysisResult && selectedReq && dynamicFields.length > 0 && ( <div className="text-center py-12 text-slate-400"> <ListChecks size={36} className="mx-auto mb-3 text-slate-200" /> <p>กรอกข้อมูลและกด "วิเคราะห์ผล"</p> </div> )}
@@ -352,7 +353,6 @@
           );
         };
 
-        // แชทบอทใช้ Absolute Position เพื่อรักษาช่องกรอกข้อความให้อยู่ด้านล่างเสมอ
         const ChatbotView = ({ chatbotData, onMiss }) => { 
           const categories = useMemo(() => [...new Set(chatbotData.map(d => d.category))], [chatbotData]); const [selectedCategory, setSelectedCategory] = useState(categories[0] || ''); const [messages, setMessages] = useState([{ sender: 'bot', text: 'สวัสดีค่ะ! มีคำถามอะไรให้ช่วยไหมคะ?' }]); const [input, setInput] = useState(''); const messagesEndRef = useRef(null);
           useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -434,10 +434,6 @@
           );
         };
 
-
-        // ==========================================
-        // Bottom / Side Navigation
-        // ==========================================
         const NAV_ITEMS = [
           { id: 'manual',       label: 'คู่มือ',   Icon: BookOpen,      color: 'teal'   },
           { id: 'archive',      label: 'คลัง',     Icon: Library,       color: 'blue'   },
@@ -489,9 +485,6 @@
           </nav>
         );
 
-        // ==========================================
-        // 5. Main App (นำ export default ออกเพื่อแก้บัค)
-        // ==========================================
         function App() {
           const [activeTab, setActiveTab]       = useState('manual');
           const [adminOpen, setAdminOpen]       = useState(false);
@@ -669,6 +662,7 @@
                     }
                   />
 
+                  {/* กล่องนี้เป็น <main> ที่จะทำหน้าที่ Scroll ให้ทุกหน้า (ปลด overflow-y-auto จากกล่องย่อยหมดแล้ว) */}
                   <main className="flex-1 overflow-y-auto bg-white relative flex flex-col">
                     {newDataNotice && (
                       <div className="bg-teal-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm animate-in slide-in-from-top-2">
@@ -706,7 +700,7 @@
                           />
                         )}
                         
-                        {/* 🌟 กล่องดันเนื้อหา (Spacer) ให้เลื่อนสุดโดยไม่โดนเมนูบัง */}
+                        {/* 🌟 กล่องดันท้าย (Spacer) - เพื่อดันให้เนื้อหาส่วนสุดท้ายลอยขึ้นมาพ้นเมนูด้านล่างบนมือถือ */}
                         {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court' || activeTab === 'chatbot') && (
                           <div className="h-[88px] md:h-0 w-full shrink-0 pointer-events-none" />
                         )}
@@ -737,7 +731,7 @@
         root.render(<App />);
     </script>
 
-    <!-- PWA Install Prompt Listener -->
+    <!-- PWA Install Prompt Listener & Service Worker Registration -->
     <script>
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
