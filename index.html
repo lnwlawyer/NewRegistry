@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Land Registry App</title>
+    
+    <!-- PWA Meta Tags & Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#006655">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Sarabun (ฟอนต์มาตรฐานราชการไทย) -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* ซ่อน Scrollbar แต่ยังเลื่อนได้ */
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <!-- Import Maps สำหรับเรียกใช้ React และ Lucide-React ผ่าน CDN -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+        }
+    }
+    </script>
+    
+    <!-- Babel สำหรับแปลง JSX ใน Browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased overflow-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+          BookOpen, ChevronRight, FileText, Scale, Gavel, 
+          FileQuestion, ArrowLeft, Bot, FileDown, 
+          Search, Info, Cpu, CheckCircle, FileWarning, ShieldAlert,
+          ListChecks, Landmark, BookMarked, Database, AlertCircle, MessageCircle, Send, Layers, Library, X,
+          RefreshCw, Settings, Eye, Link, Save, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Table,
+          Clock, Sparkles, ArrowUpRight, Star,
+          Printer, Bell, TrendingUp, BarChart2, Key, Check, Globe, Download
+        } from 'lucide-react';
+
+        // ==========================================
+        // 0. Error Boundary — ป้องกัน crash ทั้งแอพ
+        // ==========================================
+        class ErrorBoundary extends React.Component {
+          constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+          static getDerivedStateFromError(error) { return { hasError: true, error }; }
+          componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
+          render() {
+            if (!this.state.hasError) return this.props.children;
+            return (
+              <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+                <div className="bg-white rounded-2xl shadow-lg border border-rose-100 p-8 max-w-md w-full text-center">
+                  <div className="text-5xl mb-4">⚠️</div>
+                  <h2 className="text-xl font-bold text-slate-800 mb-2">เกิดข้อผิดพลาด</h2>
+                  <p className="text-slate-500 text-sm mb-6">แอพพบปัญหาที่ไม่คาดคิด กรุณารีโหลดหน้า หรือติดต่อผู้ดูแลระบบ</p>
+                  <details className="text-left bg-slate-50 rounded-xl p-3 mb-5 text-xs text-slate-400 font-mono overflow-auto max-h-32">
+                    {String(this.state.error?.message || '')}
+                  </details>
+                  <button onClick={() => window.location.reload()}
+                    className="bg-[#006655] text-white px-6 py-3 rounded-xl font-bold hover:bg-teal-700 transition-colors">
+                    รีโหลดหน้า
+                  </button>
+                </div>
+              </div>
+            );
+          }
+        }
+
+        // ==========================================
+        // 1. ค่าเริ่มต้น URL Google Sheets
+        // ==========================================
+        const DEFAULT_URLS = {
+          manual:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCudtZE4A7fADYbxtCugwUE1UJOrA6Yg6H2y1cy91mHfhIs_WGcdsR_KFIf9U_sgecG9eXs2QT1A6/pub?gid=0&single=true&output=csv',
+          decision: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCudtZE4A7fADYbxtCugwUE1UJOrA6Yg6H2y1cy91mHfhIs_WGcdsR_KFIf9U_sgecG9eXs2QT1A6/pub?gid=1813430095&single=true&output=csv',
+          archive:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCudtZE4A7fADYbxtCugwUE1UJOrA6Yg6H2y1cy91mHfhIs_WGcdsR_KFIf9U_sgecG9eXs2QT1A6/pub?gid=1273909036&single=true&output=csv',
+          chatbot_คนต่างด้าว: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCudtZE4A7fADYbxtCugwUE1UJOrA6Yg6H2y1cy91mHfhIs_WGcdsR_KFIf9U_sgecG9eXs2QT1A6/pub?gid=22287193&single=true&output=csv',
+        };
+
+        const URL_LABELS = {
+          manual:   'คู่มืองานทะเบียน',
+          decision: 'ระบบช่วยตัดสินใจ',
+          archive:  'คลังเอกสาร',
+          chatbot_คนต่างด้าว: 'Chatbot: คนต่างด้าว',
+        };
+
+        const CACHE_TTL = 30 * 60 * 1000;
+        const cacheGet = (key) => { try { const raw = localStorage.getItem(`app_cache_${key}`); if (!raw) return null; const { data, ts } = JSON.parse(raw); if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(`app_cache_${key}`); return null; } return data; } catch { return null; } };
+        const cacheSet = (key, data) => { try { localStorage.setItem(`app_cache_${key}`, JSON.stringify({ data, ts: Date.now() })); } catch {} };
+        const cacheClear = () => { try { Object.keys(localStorage).filter(k => k.startsWith('app_cache_')).forEach(k => localStorage.removeItem(k)); } catch {} };
+        const bookmarkLoad = () => { try { return JSON.parse(localStorage.getItem('app_bookmarks') || '[]'); } catch { return []; } };
+        const bookmarkSave = (list) => { try { localStorage.setItem('app_bookmarks', JSON.stringify(list)); } catch {} };
+
+        const useBookmarks = () => {
+          const [bookmarks, setBookmarks] = useState(bookmarkLoad);
+          const toggle = useCallback((item) => { setBookmarks(prev => { const exists = prev.some(b => b.id === item.id); const next = exists ? prev.filter(b => b.id !== item.id) : [item, ...prev]; bookmarkSave(next); return next; }); }, []);
+          const isBookmarked = useCallback((id) => bookmarks.some(b => b.id === id), [bookmarks]);
+          return { bookmarks, toggle, isBookmarked };
+        };
+
+        const visitedLoad = () => { try { return new Set(JSON.parse(localStorage.getItem('app_visited') || '[]')); } catch { return new Set(); } };
+        const useVisited = () => {
+          const [visited, setVisited] = useState(visitedLoad);
+          const markVisited = useCallback((url) => { setVisited(prev => { if (prev.has(url)) return prev; const next = new Set(prev); next.add(url); try { localStorage.setItem('app_visited', JSON.stringify([...next])); } catch {} return next; }); }, []);
+          const isVisited = useCallback((url) => visited.has(url), [visited]);
+          return { markVisited, isVisited };
+        };
+
+        const ANALYTICS_KEY = 'app_analytics';
+        const analyticsLoad = () => { try { return JSON.parse(localStorage.getItem(ANALYTICS_KEY) || '{"pageviews":[],"searches":[],"chatbotMisses":[]}'); } catch { return { pageviews: [], searches: [], chatbotMisses: [] }; } };
+        const analyticsSave = (data) => { try { localStorage.setItem(ANALYTICS_KEY, JSON.stringify(data)); } catch {} };
+        const analyticsClear = () => { try { localStorage.removeItem(ANALYTICS_KEY); } catch {} };
+
+        const useAnalytics = () => {
+          const trackPageview = useCallback((tab, title, path = []) => { const data = analyticsLoad(); data.pageviews.push({ tab, title, path: path.filter(Boolean).join(' › '), ts: Date.now() }); if (data.pageviews.length > 500) data.pageviews = data.pageviews.slice(-500); analyticsSave(data); }, []);
+          const trackSearch = useCallback((query, resultCount) => { if (!query || query.length < 2) return; const data = analyticsLoad(); data.searches.push({ query, resultCount, ts: Date.now() }); if (data.searches.length > 200) data.searches = data.searches.slice(-200); analyticsSave(data); }, []);
+          const trackChatbotMiss = useCallback((query, category) => { const data = analyticsLoad(); data.chatbotMisses.push({ query, category, ts: Date.now() }); if (data.chatbotMisses.length > 200) data.chatbotMisses = data.chatbotMisses.slice(-200); analyticsSave(data); }, []);
+          return { trackPageview, trackSearch, trackChatbotMiss };
+        };
+
+        // ==========================================
+        // 2. ฟังก์ชันประมวลผลข้อมูล
+        // ==========================================
+        const parseCSV = (csvText) => { const rows = []; let row = [], currentVal = '', inQuotes = false; for (let i = 0; i < csvText.length; i++) { const char = csvText[i], nextChar = csvText[i + 1]; if (char === '"' && inQuotes && nextChar === '"') { currentVal += '"'; i++; } else if (char === '"') { inQuotes = !inQuotes; } else if (char === ',' && !inQuotes) { row.push(currentVal); currentVal = ''; } else if ((char === '\n' || char === '\r') && !inQuotes) { if (char === '\r' && nextChar === '\n') i++; row.push(currentVal); rows.push(row); row = []; currentVal = ''; } else { currentVal += char; } } if (currentVal || row.length > 0) { row.push(currentVal); rows.push(row); } if (rows.length <= 1) return []; const headers = rows[0].map(h => h.trim()); return rows.slice(1).filter(r => r.join('').trim() !== '').map(r => { const obj = {}; headers.forEach((h, i) => { obj[h] = r[i] ? r[i].trim() : ''; }); return obj; }); };
+        const getEmojiForTitle = (title) => { const t = typeof title === 'string' ? title : ''; if (t.includes('ต่างด้าว')) return '🌍'; if (t.includes('นิติบุคคล')) return '🏢'; if (t.includes('จดทะเบียน')) return '📝'; if (t.includes('ค่าธรรมเนียม') || t.includes('ภาษี')) return '💰'; if (t.includes('รัฐ')) return '🏞️'; if (t.includes('อาคารชุด')) return '🏙️'; if (t.includes('ออกเอกสาร')) return '📜'; if (t.includes('รังวัด')) return '📐'; if (t.includes('กฎหมาย') || t.includes('ศาล') || t.includes('พิพากษา')) return '⚖️'; if (t.includes('มรดก')) return '💎'; if (t.includes('ซื้อขาย')) return '🤝'; if (t.includes('จำนอง')) return '🏦'; if (t.includes('เช่า')) return '🏠'; return null; };
+        const parsePDFs = (text) => { if (!text) return []; return text.split('\n').filter(line => line.includes('|')).map(line => { const [title, url] = line.split('|'); return { title: title?.trim() || '', url: url?.trim() || '' }; }); };
+        const parseSection = (textCell, pdfCell) => { if (!textCell && !pdfCell) return []; const texts = textCell ? String(textCell).split(/\s*---\s*/) : []; const pdfs = pdfCell ? String(pdfCell).split(/\s*---\s*/) : []; const maxLength = Math.max(texts.length, pdfs.length); const result = []; for (let i = 0; i < maxLength; i++) { const t = texts[i] || '', p = pdfs[i] || ''; if (t.trim() || p.trim()) result.push({ text: t.trim(), pdfUrls: parsePDFs(p) }); } return result; };
+        const parseList = (text) => text ? text.split('\n').map(i => i.trim()).filter(Boolean) : [];
+
+        const transformManualData = (csvData) => { const result = []; csvData.forEach(row => { const getVal = (...keys) => { for (let k of keys) { const foundKey = Object.keys(row).find(rKey => rKey.trim().toLowerCase() === k.toLowerCase()); if (foundKey !== undefined) return row[foundKey]; } return ''; }; const mainCat = getVal('MainCategory', 'หมวดหมู่หลัก'); if (!mainCat) return; let main = result.find(m => m.title === mainCat); if (!main) { main = { id: `m${result.length+1}`, title: mainCat, iconUrl: getVal('MainIconURL'), subCategories: [] }; result.push(main); } const subCat = getVal('SubCategory', 'หมวดหมู่ย่อย') || ''; let sub = main.subCategories.find(s => s.title === subCat); if (!sub) { sub = { id: `s${main.id}-${main.subCategories.length+1}`, title: subCat, iconUrl: getVal('SubIconURL'), topics: [] }; main.subCategories.push(sub); } sub.topics.push({ id: `t${sub.id}-${sub.topics.length+1}`, title: getVal('TopicTitle', 'ชื่อเรื่อง') || '', iconUrl: getVal('TopicIconURL', 'ลิงก์รูปภาพ'), content: { meaning: parseSection(getVal('Meaning', 'ความหมาย'), getVal('MeaningPDF')), summary: parseSection(getVal('Summary', 'สาระสำคัญ', 'ขั้นตอนดำเนินการ'), getVal('SummaryPDF')), laws: parseSection(getVal('Laws', 'กฎหมาย'), getVal('LawsPDF')), courtRulings: parseSection(getVal('CourtRulings', 'แนวคำพิพากษา'), getVal('CourtRulingsPDF')), councilRulings: parseSection(getVal('CouncilRulings', 'คำวินิจฉัยกฤษฎีกา'), getVal('CouncilRulingsPDF')), deptRulings: parseSection(getVal('DeptRulings', 'แนวคำวินิจฉัย'), getVal('DeptRulingsPDF')), qna: parseSection(getVal('QnA', 'คำถามคำตอบ'), getVal('QnAPDF')), handbooks: parseSection(getVal('Handbooks', 'หนังสือคู่มือ'), getVal('HandbooksPDF')) } }); }); return result; };
+        const transformDecisionData = (csvData) => { const rules = []; csvData.forEach(row => { const getVal = (...keys) => { for (let k of keys) { const searchKey = k.replace(/[\s\uFEFF\u200B]/g, '').toLowerCase(); const foundKey = Object.keys(row).find(rKey => rKey.replace(/[\s\uFEFF\u200B]/g, '').toLowerCase() === searchKey); if (foundKey !== undefined) return String(row[foundKey]).trim(); } return ''; }; const reqType = getVal('ประเภทคำขอ', 'RequestType'); if (!reqType) return; const conditions = []; for (let i = 1; i <= 4; i++) { const field = getVal(`เงื่อนไข:ชื่อฟิลด์(${i})`, `Field${i}`); if (!field) continue; conditions.push({ field, operator: getVal(`เงื่อนไข:ตัวดำเนินการ(${i})`, `Operator${i}`), value: getVal(`เงื่อนไข:ค่า(${i})`, `Value${i}`), logic: getVal(`เงื่อนไข:ตรรกะ(${i})`, `Logic${i}`) || 'AND', }); } rules.push({ requestType: reqType, ruleId: getVal('รหัสกฎ', 'RuleId'), priority: parseInt(getVal('ลำดับความสำคัญ', 'Priority')) || 999, conditions, status: getVal('สถานะ', 'Status').toLowerCase() || 'info', diagnosis: getVal('หัวข้อวินิจฉัย', 'Diagnosis'), summary: getVal('สรุปผลการพิจารณา', 'Summary'), reason: getVal('คำอธิบายเหตุผล', 'Reason'), reference: getVal('กฎหมายอ้างอิง', 'Reference'), nextStep: getVal('ขั้นตอนถัดไป', 'NextStep'), documents: parseList(getVal('เอกสารที่ต้องใช้', 'Documents')) }); }); return rules.sort((a, b) => a.priority - b.priority); };
+        const evalCondition = (cond, userVal) => { if (!cond.field) return true; if (!userVal && userVal !== '0') return false; const op = (cond.operator || '').trim(); const cVal = (cond.value || '').trim(); const numU = parseFloat(userVal); const numC = parseFloat(cVal); switch (op) { case 'เท่ากับ': return userVal === cVal; case 'ไม่เท่ากับ': return userVal !== cVal; case 'อยู่ในกลุ่ม': return cVal.split(',').map(v => v.trim()).includes(userVal); case 'ไม่อยู่ในกลุ่ม': return !cVal.split(',').map(v => v.trim()).includes(userVal); case 'มากกว่า': return !isNaN(numU) && !isNaN(numC) && numU > numC; case 'มากกว่าหรือเท่ากับ': return !isNaN(numU) && !isNaN(numC) && numU >= numC; case 'น้อยกว่า': return !isNaN(numU) && !isNaN(numC) && numU < numC; case 'น้อยกว่าหรือเท่ากับ': return !isNaN(numU) && !isNaN(numC) && numU <= numC; case 'ระหว่าง': { const [lo, hi] = cVal.split('-').map(v => parseFloat(v.trim())); return !isNaN(numU) && numU >= lo && numU <= hi; } case 'มีคำว่า': return userVal.includes(cVal); default: return false; } };
+        const transformChatbotData = (csvData, category) => { return csvData.map(row => { const getVal = (...keys) => { for (let k of keys) { const foundKey = Object.keys(row).find(rKey => rKey.trim().toLowerCase() === k.toLowerCase()); if (foundKey !== undefined) return row[foundKey]; } return ''; }; const keywordsText = getVal('Keywords', 'คีย์เวิร์ด'); const answer = getVal('Answer', 'คำตอบ'); if (!keywordsText || !answer) return null; return { category, keywords: keywordsText.split(',').map(k => k.trim().toLowerCase()).filter(Boolean), answer }; }).filter(Boolean); };
+        const transformArchiveData = (csvData) => { const result = [ { id: 'a1', title: 'กฎหมาย', emoji: '⚖️', subCategories: [] }, { id: 'a2', title: 'กฎกระทรวง', emoji: '🏢', subCategories: [] }, { id: 'a3', title: 'ระเบียบคำสั่ง', emoji: '📋', subCategories: [] }, { id: 'a4', title: 'หนังสือเวียน', emoji: '✉️', subCategories: [] }, { id: 'a5', title: 'คำพิพากษาคำสั่งศาล', emoji: '🏛️', subCategories: [] }, { id: 'a6', title: 'คำวินิจฉัยคณะกรรมการ', emoji: '👨‍⚖️', subCategories: [] }, { id: 'a7', title: 'บทความ', emoji: '📰', subCategories: [] }, { id: 'a8', title: 'วารสาร', emoji: '📓', subCategories: [] }, { id: 'a9', title: 'หนังสือ/คู่มือ', emoji: '📚', subCategories: [] } ]; csvData.forEach(row => { const getVal = (...keys) => { for (let k of keys) { const foundKey = Object.keys(row).find(rKey => rKey.trim().toLowerCase() === k.toLowerCase()); if (foundKey !== undefined) return String(row[foundKey]).trim(); } return ''; }; const mainCat = getVal('หมวดหมู่หลัก', 'ArchiveCategory'); if (!mainCat) return; let main = result.find(m => m.title === mainCat); if (!main) { main = { id: `am${result.length+1}`, title: mainCat, emoji: getEmojiForTitle(mainCat) || '📁', subCategories: [] }; result.push(main); } const mainIcon = getVal('ลิงก์รูปภาพ (Icon URL)', 'MainIconURL'); if (mainIcon && !main.imageUrl) main.imageUrl = mainIcon; const sub1Title = getVal('เมนูย่อย 1', 'ArchiveSub1') || ''; let sub1 = main.subCategories.find(s => s.title === sub1Title); if (!sub1) { sub1 = { id: `as1-${main.id}-${main.subCategories.length+1}`, title: sub1Title, topics: [] }; main.subCategories.push(sub1); } const sub2Title = getVal('เมนูย่อย 2', 'ArchiveSub2') || ''; let sub2 = sub1.topics.find(t => t.title === sub2Title); if (!sub2) { sub2 = { id: `as2-${sub1.id}-${sub1.topics.length+1}`, title: sub2Title, documents: [] }; sub1.topics.push(sub2); } const docTitle = getVal('ชื่อเอกสาร', 'DocumentTitle'); const docUrl = getVal('ลิงก์เอกสาร', 'DocumentURL'); if (docTitle || docUrl) sub2.documents.push({ title: docTitle || 'เอกสารไม่มีชื่อ', url: docUrl || '#' }); }); return result; };
+
+        const gsHighlight = (text, query) => { if (!query || !text) return String(text || ''); const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const parts = String(text).split(new RegExp(`(${escaped})`, 'gi')); return parts.map((part, i) => part.toLowerCase() === query.toLowerCase() ? <mark key={i} className="bg-amber-200 text-amber-900 rounded px-0.5">{part}</mark> : part ); };
+
+        const MODULE_META = {
+          manual:       { label: 'คู่มือ',      Icon: BookOpen,      bg: 'bg-teal-50',   text: 'text-teal-700',   border: 'border-teal-200',   badge: 'bg-teal-100 text-teal-700'   },
+          archive:      { label: 'คลังเอกสาร', Icon: Library,       bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   badge: 'bg-blue-100 text-blue-700'   },
+          decision:     { label: 'Decision',    Icon: Cpu,           bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-700' },
+          chatbot:      { label: 'ถาม-ตอบ',     Icon: MessageCircle, bg: 'bg-cyan-50',   text: 'text-cyan-700',   border: 'border-cyan-200',   badge: 'bg-cyan-100 text-cyan-700'   },
+          legal_search: { label: 'ค้นฎีกา',     Icon: Scale,         bg: 'bg-emerald-50',text: 'text-emerald-700',border: 'border-emerald-200',badge: 'bg-emerald-100 text-emerald-700'},
+          ocs_comment:  { label: 'กฤษฎีกา',     Icon: Globe,         bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', badge: 'bg-purple-100 text-purple-700'},
+          supreme_court:{ label: 'ศาลฎีกา',     Icon: Gavel,         bg: 'bg-rose-50',   text: 'text-rose-700',   border: 'border-rose-200',   badge: 'bg-rose-100 text-rose-700'}
+        };
+
+        const buildManualIndex = (db) => { const items = []; const SECTIONS = [ { key: 'meaning', label: 'ความหมาย' }, { key: 'summary', label: 'ขั้นตอน' }, { key: 'laws', label: 'กฎหมาย' }, { key: 'courtRulings', label: 'คำพิพากษา' }, { key: 'councilRulings', label: 'กฤษฎีกา' }, { key: 'deptRulings', label: 'คำวินิจฉัย' }, { key: 'qna', label: 'ถาม-ตอบ' }, { key: 'handbooks', label: 'คู่มือ' }, ]; db.forEach(main => { main.subCategories.forEach(sub => { sub.topics.forEach(topic => { items.push({ id: `manual-${main.id}-${sub.id}-${topic.id}`, tab: 'manual', title: topic.title, path: [main.title, sub.title, topic.title].filter(Boolean), snippet: '', ids: { mainId: main.id, subId: sub.id, topicId: topic.id, level: 'detail' }, }); SECTIONS.forEach(sec => { (topic.content[sec.key] || []).forEach((entry, eIdx) => { if (!entry.text) return; items.push({ id: `manual-${main.id}-${sub.id}-${topic.id}-${sec.key}-${eIdx}`, tab: 'manual', title: topic.title, sectionLabel: sec.label, path: [main.title, sub.title, topic.title, sec.label].filter(Boolean), snippet: entry.text, ids: { mainId: main.id, subId: sub.id, topicId: topic.id, sectionKey: sec.key, level: 'content' }, }); }); }); }); }); }); return items; };
+        const buildArchiveIndex = (db) => { const items = []; db.forEach(main => { main.subCategories.forEach(sub1 => { sub1.topics.forEach(sub2 => { if (sub2.title) items.push({ id: `archive-${main.id}-${sub1.id}-${sub2.id}`, tab: 'archive', title: sub2.title, path: [main.title, sub1.title].filter(Boolean), snippet: `${sub2.documents.length} เอกสาร`, ids: { mainId: main.id, subId: sub1.id, topicId: sub2.id, level: 'archiveContent' }, }); sub2.documents.forEach((doc, dIdx) => { items.push({ id: `archive-${main.id}-${sub1.id}-${sub2.id}-${dIdx}`, tab: 'archive', title: doc.title, path: [main.title, sub1.title, sub2.title].filter(Boolean), snippet: '', url: doc.url, ids: { mainId: main.id, subId: sub1.id, topicId: sub2.id, level: 'archiveContent' }, }); }); }); }); }); return items; };
+        const buildDecisionIndex = (rules) => rules.map((rule, idx) => ({ id: `decision-${idx}`, tab: 'decision', title: rule.diagnosis || rule.requestType, path: [rule.requestType], snippet: rule.summary || rule.reason || '', ids: {}, }));
+        const buildChatbotIndex = (data) => data.map((item, idx) => ({ id: `chatbot-${idx}`, tab: 'chatbot', title: item.keywords.slice(0, 3).join(', '), path: [item.category], snippet: item.answer, ids: {}, }));
+
+        const scoreItem = (item, q) => { let score = 0; const title = (item.title || '').toLowerCase(); const snippet = (item.snippet || '').toLowerCase(); const pathStr = (item.path || []).join(' ').toLowerCase(); if (title === q) score += 100; else if (title.startsWith(q)) score += 60; else if (title.includes(q)) score += 40; if (snippet.includes(q)) score += 20; if (pathStr.includes(q)) score += 10; q.split(/\s+/).forEach(w => { if (w.length < 2) return; if (title.includes(w)) score += 5; if (snippet.includes(w)) score += 2; }); return score; };
+
+        // ==========================================
+        // GlobalSearch Component
+        // ==========================================
+        const GlobalSearch = ({ manualDatabase = [], archiveDatabase = [], decisionRules = [], chatbotData = [], onNavigate, onSearch }) => {
+          const [open, setOpen] = useState(false);
+          const [query, setQuery] = useState('');
+          const [activeFilter, setActiveFilter] = useState('all');
+          const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem('gs_history') || '[]'); } catch { return []; } });
+          const inputRef = useRef(null);
+
+          const fullIndex = useMemo(() => [ ...buildManualIndex(manualDatabase), ...buildArchiveIndex(archiveDatabase), ...buildDecisionIndex(decisionRules), ...buildChatbotIndex(chatbotData) ], [manualDatabase, archiveDatabase, decisionRules, chatbotData]);
+          const results = useMemo(() => { const q = query.trim().toLowerCase(); if (q.length < 2) return []; return fullIndex.map(item => ({ ...item, score: scoreItem(item, q) })).filter(item => item.score > 0 && (activeFilter === 'all' || item.tab === activeFilter)).sort((a, b) => b.score - a.score).slice(0, 40); }, [query, fullIndex, activeFilter]);
+          const grouped = useMemo(() => { const g = {}; results.forEach(r => { if (!g[r.tab]) g[r.tab] = []; g[r.tab].push(r); }); return g; }, [results]);
+          const counts = useMemo(() => { const c = { all: results.length }; results.forEach(r => { c[r.tab] = (c[r.tab] || 0) + 1; }); return c; }, [results]);
+
+          useEffect(() => { const handler = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setOpen(true); } if (e.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
+          useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 50); else { setQuery(''); setActiveFilter('all'); } }, [open]);
+
+          const saveHistory = useCallback((item) => { const entry = { id: item.id, title: item.title, tab: item.tab, path: item.path, ids: item.ids, url: item.url }; setHistory(prev => { const next = [entry, ...prev.filter(h => h.id !== entry.id)].slice(0, 8); try { localStorage.setItem('gs_history', JSON.stringify(next)); } catch {} return next; }); }, []);
+          const handleSelect = useCallback((item) => { saveHistory(item); if (onSearch) onSearch(query.trim(), results.length); setOpen(false); if (item.url) { window.open(item.url, '_blank', 'noopener'); return; } if (onNavigate) onNavigate(item); }, [onNavigate, saveHistory, onSearch, query, results.length]);
+          const clearHistory = () => { setHistory([]); try { localStorage.removeItem('gs_history'); } catch {} };
+
+          const showHistory = query.trim().length < 2 && history.length > 0;
+          const q = query.trim();
+
+          const ResultCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; const Icon = meta.Icon; return ( <button onClick={() => handleSelect(item)} className={`w-full text-left px-4 py-3 rounded-xl border ${meta.border} ${meta.bg} hover:brightness-95 active:scale-[0.99] transition-all flex items-start gap-3 group`}> <div className={`mt-0.5 p-1.5 rounded-lg bg-white border ${meta.border} shrink-0`}> <Icon size={14} className={meta.text} /> </div> <div className="flex-1 min-w-0"> <div className="flex items-start justify-between gap-2"> <p className={`font-semibold text-sm leading-snug ${meta.text} truncate`}>{gsHighlight(item.title, q)}</p> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-medium ${meta.badge}`}>{meta.label}</span> </div> {item.path?.length > 1 && ( <div className="flex items-center gap-1 mt-0.5 flex-wrap"> {item.path.slice(0, -1).map((p, i) => ( <React.Fragment key={i}> <span className="text-[11px] text-slate-400 truncate max-w-[100px]">{p}</span> {i < item.path.length - 2 && <ChevronRight size={10} className="text-slate-300 shrink-0" />} </React.Fragment> ))} </div> )} {item.snippet && ( <p className="text-[12px] text-slate-500 mt-1 line-clamp-2 leading-relaxed"> {gsHighlight(item.snippet.slice(0, 120), q)}{item.snippet.length > 120 && '...'} </p> )} </div> {item.url && <ArrowUpRight size={14} className="text-slate-400 shrink-0 mt-1 group-hover:text-slate-600" />} </button> ); };
+          const HistoryCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; return ( <button onClick={() => handleSelect(item)} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-3"> <Clock size={14} className="text-slate-400 shrink-0" /> <div className="flex-1 min-w-0"> <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p> {item.path?.length > 0 && <p className="text-[11px] text-slate-400 truncate">{item.path.join(' › ')}</p>} </div> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${meta.badge}`}>{meta.label}</span> </button> ); };
+
+          return (
+            <>
+              <button onClick={() => setOpen(true)} className="flex items-center gap-2 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white px-3 py-2 rounded-xl transition-colors border border-white/20 min-h-[40px]" aria-label="ค้นหา (Ctrl+K)"> <Search size={16} /> <span className="hidden sm:inline text-white/80 text-xs">ค้นหา...</span> <kbd className="hidden md:inline text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono">⌘K</kbd> </button>
+              {open && (
+                <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[8vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+                  <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '80dvh' }} onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100"> <Search size={20} className="text-[#006655] shrink-0" /> <input ref={inputRef} type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาในคู่มือ คลังเอกสาร Decision และ Chatbot..." className="flex-1 text-base outline-none text-slate-800 placeholder:text-slate-400 bg-transparent" /> {query && ( <button onClick={() => setQuery('')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 shrink-0"> <X size={14} className="text-slate-400" /> </button> )} <button onClick={() => setOpen(false)} className="text-[11px] text-slate-400 border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50 shrink-0">ESC</button> </div>
+                    {results.length > 0 && ( <div className="flex gap-1.5 px-4 py-2.5 border-b border-slate-100 overflow-x-auto scrollbar-none"> {['all', 'manual', 'archive', 'decision', 'chatbot'].map(tab => { const count = counts[tab]; if (tab !== 'all' && !count) return null; const meta = tab === 'all' ? { label: 'ทั้งหมด', badge: 'bg-slate-100 text-slate-600' } : MODULE_META[tab]; return ( <button key={tab} onClick={() => setActiveFilter(tab)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${activeFilter === tab ? `${meta.badge} ring-1 ring-current/30` : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}> {tab !== 'all' && React.createElement(MODULE_META[tab].Icon, { size: 12 })} <span>{meta.label}</span> {count > 0 && <span className="bg-white/60 px-1 rounded-full">{count}</span>} </button> ); })} </div> )}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-4">
+                      {showHistory && ( <div> <div className="flex items-center justify-between px-1 mb-2"> <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"> <Clock size={12} />ประวัติการค้นหา </span> <button onClick={clearHistory} className="text-[11px] text-slate-400 hover:text-slate-600">ล้าง</button> </div> <div className="space-y-1">{history.map(item => <HistoryCard key={item.id} item={item} />)}</div> </div> )}
+                      {!showHistory && q.length < 2 && ( <div className="text-center py-10 text-slate-400"> <Sparkles size={32} className="mx-auto mb-3 text-slate-300" /> <p className="font-medium">พิมพ์คำค้นหาอย่างน้อย 2 ตัวอักษร</p> <p className="text-sm mt-1">ค้นหาข้ามคู่มือ คลัง และ Decision ได้ในที่เดียว</p> </div> )}
+                      {q.length >= 2 && results.length === 0 && ( <div className="text-center py-10 text-slate-400"> <Search size={32} className="mx-auto mb-3 text-slate-300" /> <p className="font-medium">ไม่พบผลลัพธ์สำหรับ "{query}"</p> <p className="text-sm mt-1">ลองใช้คำอื่น หรือเปลี่ยน filter</p> </div> )}
+                      {activeFilter === 'all' ? Object.entries(grouped).map(([tab, items]) => { const meta = MODULE_META[tab]; if (!meta) return null; return ( <div key={tab}> <div className="flex items-center gap-2 px-1 mb-2"> <meta.Icon size={13} className={meta.text} /> <span className={`text-xs font-bold uppercase tracking-wider ${meta.text}`}>{meta.label}</span> <span className="text-[11px] text-slate-400">({items.length})</span> </div> <div className="space-y-1.5"> {items.slice(0, 5).map(item => <ResultCard key={item.id} item={item} />)} {items.length > 5 && ( <button onClick={() => setActiveFilter(tab)} className={`w-full text-xs py-2 rounded-lg ${meta.bg} ${meta.text} font-semibold hover:brightness-95`}> ดูทั้งหมด {items.length} รายการใน {meta.label} → </button> )} </div> </div> ); }) : <div className="space-y-1.5">{results.map(item => <ResultCard key={item.id} item={item} />)}</div> }
+                    </div>
+                    <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400"> <span>{fullIndex.length.toLocaleString()} รายการในฐานข้อมูล</span> {results.length > 0 && <span>พบ {results.length} ผลลัพธ์</span>} </div>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        };
+
+        // ==========================================
+        // 4. UI Components
+        // ==========================================
+        const IconDisplay = ({ imageUrl, emoji, defaultIcon: DefaultIcon, sizeClass = "w-10 h-10 md:w-12 md:h-12", iconSize = 22, textClass = "text-2xl md:text-3xl" }) => { if (imageUrl) return <img src={imageUrl} alt="icon" className={`${sizeClass} rounded-full object-cover shadow-sm shrink-0 bg-white border border-teal-100`} />; if (emoji) return <div className={`${textClass} ${sizeClass} flex items-center justify-center bg-white rounded-full shadow-sm shrink-0`}>{emoji}</div>; return <div className="bg-white p-2.5 rounded-full text-teal-600 shadow-sm shrink-0"><DefaultIcon size={iconSize} /></div>; };
+        const Breadcrumb = ({ items }) => { if (!items || items.length <= 1) return null; return ( <div className="bg-[#005544] border-t border-white/10 px-3 py-1.5 flex items-center gap-1 overflow-x-auto scrollbar-none"> {items.map((item, idx) => { const isLast = idx === items.length - 1; return ( <React.Fragment key={idx}> {idx > 0 && <ChevronRight size={12} className="text-teal-300/60 shrink-0" />} {isLast ? <span className="text-[11px] text-white font-semibold whitespace-nowrap truncate max-w-[140px]">{item.label}</span> : <button onClick={item.onClick} className="text-[11px] text-teal-200 hover:text-white transition-colors whitespace-nowrap shrink-0 underline-offset-2 hover:underline active:opacity-70">{item.label}</button> } </React.Fragment> ); })} </div> ); };
+        const Header = ({ title, onBack, showBack, onOpenAdmin, breadcrumbItems, globalSearch }) => ( <header className="sticky top-0 z-10 bg-[#006655] text-white shadow-md shrink-0"> <div className="flex items-center px-2 py-2 h-16 gap-1"> {showBack ? ( <button onClick={onBack} className="flex items-center justify-center w-12 h-12 rounded-2xl hover:bg-white/20 active:bg-white/30 transition-colors shrink-0" aria-label="ย้อนกลับ"> <ArrowLeft size={26} /> </button> ) : ( <div className="w-12 shrink-0" /> )} <h1 className="flex-1 text-center text-base font-bold truncate px-1">{String(title || '')}</h1> <div className="flex items-center gap-1 shrink-0"> {globalSearch} <button onClick={onOpenAdmin} className="flex items-center justify-center w-10 h-10 rounded-2xl hover:bg-white/20 active:bg-white/30 transition-colors" aria-label="ตั้งค่า / Admin" title="ตั้งค่า / Admin"> <Settings size={22} /> </button> </div> </div> <Breadcrumb items={breadcrumbItems} /> </header> );
+
+        const BookmarkCtx = React.createContext({ toggle: () => {}, isBookmarked: () => false });
+        const ListItem = ({ title, icon: Icon, emoji, imageUrl, onClick, bookmarkItem }) => { const { toggle, isBookmarked } = React.useContext(BookmarkCtx); const starred = bookmarkItem ? isBookmarked(bookmarkItem.id) : false; return ( <div className="relative group"> <button onClick={onClick} className="w-full min-h-[56px] flex items-center justify-between bg-[#F0FAF5] px-4 py-3 md:py-4 rounded-2xl border border-teal-100/50 hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] text-left pr-12"> <div className="flex items-center gap-4"> <IconDisplay imageUrl={imageUrl} emoji={emoji} defaultIcon={Icon} /> <span className="font-bold text-[#006655] text-[15px] md:text-base leading-tight break-words">{String(title || '(ไม่มีชื่อ)')}</span> </div> <ChevronRight className="text-slate-400 shrink-0 ml-2" size={22} /> </button> {bookmarkItem && ( <button onClick={e => { e.stopPropagation(); toggle(bookmarkItem); }} className={`absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${starred ? 'text-amber-400 bg-amber-50' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-50'}`} aria-label={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} title={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} > <Star size={16} fill={starred ? 'currentColor' : 'none'} /> </button> )} </div> ); };
+        const VisitedCtx = React.createContext({ markVisited: () => {}, isVisited: () => false });
+
+        // ==========================================
+        // 3. ContentSection (อัปเดตปรับปรุงแก้ระยะช่องไฟภาษาไทย)
+        // ==========================================
+        const ContentSection = ({ title, icon: Icon, emoji, entries }) => { 
+          const { markVisited, isVisited } = React.useContext(VisitedCtx); 
+          return ( 
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col"> 
+              <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold shrink-0"> 
+                {emoji ? <span className="text-xl">{emoji}</span> : <Icon size={18} />} 
+                <h2>{String(title || '')}</h2> 
+              </div> 
+              <div className="p-4 flex-1 flex flex-col gap-6 overflow-y-auto"> 
+                {(!entries || entries.length === 0) ? ( 
+                  <span className="text-slate-400 italic">ไม่มีข้อมูล</span> 
+                ) : entries.map((entry, idx) => ( 
+                  <div key={idx} className={`flex flex-col gap-3 ${idx > 0 ? 'pt-6 border-t border-slate-200' : ''}`}> 
+                    {entry.text && (
+                      <div 
+                        className="text-slate-700 whitespace-pre-wrap leading-relaxed text-justify break-words"
+                        style={{ textJustify: 'inter-character', wordBreak: 'break-word' }}
+                      >
+                        {String(entry.text)}
+                      </div>
+                    )} 
+                    {entry.pdfUrls?.length > 0 && ( 
+                      <div className="flex flex-wrap gap-2 mt-1"> 
+                        {entry.pdfUrls.map((pdf, pIdx) => { 
+                          const seen = isVisited(pdf.url); 
+                          return ( 
+                            <a key={pIdx} href={pdf.url} target="_blank" rel="noopener noreferrer" onClick={() => markVisited(pdf.url)} className={`inline-flex items-center gap-1.5 text-sm px-4 py-2.5 min-h-[44px] rounded-xl transition-colors font-medium border active:scale-[0.97] ${seen ? 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'}`}> 
+                              <FileDown size={16} /> 
+                              <span>{String(pdf.title)}</span> 
+                              {seen && <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full ml-1">ดูแล้ว</span>} 
+                            </a> 
+                          ); 
+                        })} 
+                      </div> 
+                    )} 
+                  </div> 
+                ))} 
+              </div> 
+            </div> 
+          ); 
+        };
+
+        const LoadingScreen = ({ sources }) => ( <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-white"> <div className="relative"> <div className="w-20 h-20 rounded-full border-4 border-teal-100 border-t-[#006655] animate-spin" /> <Database size={28} className="absolute inset-0 m-auto text-[#006655]" /> </div> <div className="text-center"> <p className="font-bold text-[#006655] text-lg mb-1">กำลังโหลดข้อมูล...</p> <p className="text-slate-400 text-sm">กรุณารอสักครู่</p> </div> <div className="w-full max-w-sm space-y-2"> {sources.map(s => ( <div key={s.key} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3"> {s.status === 'loading' && <Loader2 size={16} className="text-teal-500 animate-spin shrink-0" />} {s.status === 'done' && <CheckCircle2 size={16} className="text-green-500 shrink-0" />} {s.status === 'error' && <XCircle size={16} className="text-rose-500 shrink-0" />} {s.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-slate-200 shrink-0" />} <span className="text-sm text-slate-600">{s.label}</span> </div> ))} </div> </div> );
+
+        // ==========================================
+        // Admin Modal (ปรับปรุงการดักจับ PWA Install)
+        // ==========================================
+        const AdminModal = ({ rawData, onReloadData, sheetUrls, onUpdateUrls, onClose }) => {
+          const [activeSection, setActiveSection] = useState('urls'); const [editedUrls, setEditedUrls] = useState({ ...sheetUrls }); const [savedFeedback, setSavedFeedback] = useState(''); const [expandedTable, setExpandedTable] = useState(null); const [tableSearch, setTableSearch] = useState(''); const [analyticsData] = useState(() => analyticsLoad());
+          const [deferredPrompt, setDeferredPrompt] = useState(window.pwaDeferredPrompt || null);
+          const [isInstallable, setIsInstallable] = useState(!!window.pwaDeferredPrompt);
+
+          // รับ event จากตัวแปร global ที่ดักไว้ล่างสุดของ index.html
+          useEffect(() => {
+            const handlePromptAvailable = (e) => {
+              setDeferredPrompt(e.detail);
+              setIsInstallable(true);
+            };
+            window.addEventListener('pwa-prompt-available', handlePromptAvailable);
+            
+            // เช็คว่าเคยติดตั้งหรืออยู่ในโหมด PWA แล้วหรือยัง
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+               setIsInstallable(false);
+            }
+            return () => window.removeEventListener('pwa-prompt-available', handlePromptAvailable);
+          }, []);
+
+          const handleInstallClick = async () => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+              const { outcome } = await deferredPrompt.userChoice;
+              if (outcome === 'accepted') {
+                setDeferredPrompt(null);
+                setIsInstallable(false);
+                window.pwaDeferredPrompt = null;
+              }
+            } else {
+              alert("การติดตั้งแอปบนอุปกรณ์นี้:\n\n• iOS (Safari): แตะปุ่ม 'แชร์' (สี่เหลี่ยมมีลูกศรชี้ขึ้น) แล้วเลือก 'เพิ่มไปยังหน้าจอโฮม' (Add to Home Screen)\n\n• Android (Chrome): แตะปุ่มเมนู (จุด 3 จุดมุมขวาบน) แล้วเลือก 'ติดตั้งแอป' (Install App) หรือ 'เพิ่มลงในหน้าจอหลัก'");
+            }
+          };
+
+          const handleSaveUrls = () => { onUpdateUrls(editedUrls); setSavedFeedback('บันทึกแล้ว! กด Reload เพื่อโหลดข้อมูลใหม่'); setTimeout(() => setSavedFeedback(''), 4000); };
+          const hasUrlChanged = JSON.stringify(editedUrls) !== JSON.stringify(sheetUrls);
+          const topPages = useMemo(() => { const counts = {}; analyticsData.pageviews.forEach(pv => { const key = pv.title || pv.tab; counts[key] = (counts[key] || 0) + 1; }); return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10); }, [analyticsData]);
+          const topSearches = useMemo(() => { const counts = {}; analyticsData.searches.forEach(s => { const key = s.query.toLowerCase().trim(); counts[key] = (counts[key] || 0) + 1; }); return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10); }, [analyticsData]);
+          const chatbotMissRate = useMemo(() => { const misses = analyticsData.chatbotMisses || []; const counts = {}; misses.forEach(m => { counts[m.query] = (counts[m.query] || 0) + 1; }); return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10); }, [analyticsData]);
+          const dataStats = useMemo(() => { const manual = rawData.manual || []; const decision = rawData.decision || []; const archive = rawData.archive || []; const chatbot = rawData.chatbot || []; return [ { key: 'manual', label: 'คู่มืองานทะเบียน', icon: BookOpen, color: 'teal', rows: manual.length, preview: manual.slice(0, 100) }, { key: 'decision', label: 'ระบบช่วยตัดสินใจ', icon: Cpu, color: 'indigo', rows: decision.length, preview: decision.slice(0, 100) }, { key: 'archive', label: 'คลังเอกสาร', icon: Library, color: 'blue', rows: archive.length, preview: archive.slice(0, 100) }, { key: 'chatbot', label: 'Chatbot Q&A', icon: MessageCircle, color: 'cyan', rows: chatbot.length, preview: chatbot.slice(0, 100) }, ]; }, [rawData]);
+          const colorMap = { teal: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'teal-200', badge: 'bg-teal-100 text-teal-700' }, indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-700' }, blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-700' }, cyan: { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', badge: 'bg-cyan-100 text-cyan-700' }, };
+          const currentTableData = expandedTable ? dataStats.find(d => d.key === expandedTable) : null;
+          const filteredTableRows = useMemo(() => { if (!currentTableData) return []; const q = tableSearch.toLowerCase(); if (!q) return currentTableData.preview; return currentTableData.preview.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(q))); }, [currentTableData, tableSearch]);
+          const tableHeaders = currentTableData?.preview?.[0] ? Object.keys(currentTableData.preview[0]) : [];
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+              <div className="w-full max-w-2xl bg-white rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-orange-100 p-2 rounded-xl"><Settings size={20} className="text-orange-600" /></div>
+                    <div><h2 className="font-bold text-slate-800 text-base">ตั้งค่า / Admin</h2><p className="text-xs text-slate-400">จัดการ URL Google Sheets และตรวจสอบข้อมูล</p></div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { cacheClear(); onReloadData(true); }} className="flex items-center gap-1.5 bg-[#006655] text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-teal-700 transition-colors"><RefreshCw size={14} /><span>Reload</span></button>
+                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"><X size={20} className="text-slate-500" /></button>
+                  </div>
+                </div>
+                <div className="flex gap-2 px-5 py-3 bg-slate-50 border-b border-slate-100 shrink-0 overflow-x-auto scrollbar-none">
+                  <button onClick={() => setActiveSection('urls')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'urls' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Link size={14} /><span>URL Sheets</span></button>
+                  <button onClick={() => setActiveSection('inspect')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'inspect' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Eye size={14} /><span>ตรวจสอบข้อมูล</span></button>
+                  <button onClick={() => setActiveSection('analytics')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'analytics' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><BarChart2 size={14} /><span>Analytics</span></button>
+                  <button onClick={() => setActiveSection('install')} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${activeSection === 'install' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Download size={14} /><span>ติดตั้งแอป</span></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                    {activeSection === 'urls' && ( <> <p className="text-sm text-slate-500">แก้ไข URL ของ Google Sheets แต่ละชุดข้อมูล จากนั้นกด "บันทึก" และ "Reload"</p> {Object.entries(URL_LABELS).map(([key, label]) => { const changed = editedUrls[key] !== sheetUrls[key]; return ( <div key={key} className={`bg-white rounded-2xl border p-4 shadow-sm transition-all ${changed ? 'border-orange-300 bg-orange-50/30' : 'border-slate-200'}`}> <div className="flex items-center justify-between mb-2"> <span className="font-bold text-slate-700 text-sm">{label}</span> {changed && <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">มีการแก้ไข</span>} </div> <textarea value={editedUrls[key] || ''} onChange={e => setEditedUrls(prev => ({ ...prev, [key]: e.target.value }))} rows={2} className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#006655] resize-none" placeholder="วาง URL ที่นี่..." /> <button onClick={() => setEditedUrls(prev => ({ ...prev, [key]: DEFAULT_URLS[key] }))} className="mt-2 text-xs text-slate-400 hover:text-slate-600 underline"> รีเซ็ตเป็นค่าเริ่มต้น </button> </div> ); })} <div className="flex items-center gap-3 pb-2"> <button onClick={handleSaveUrls} disabled={!hasUrlChanged} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-md ${hasUrlChanged ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}> <Save size={16} /><span>บันทึก URL</span> </button> {savedFeedback && ( <div className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-3 rounded-2xl text-sm font-medium border border-green-200"> <CheckCircle2 size={16} /><span>{savedFeedback}</span> </div> )} </div> </> )}
+                    
+                    {activeSection === 'install' && (
+                      <div className="flex flex-col items-center text-center p-6 bg-slate-50 rounded-2xl border border-slate-200 animate-in fade-in">
+                        <div className="w-16 h-16 bg-[#006655] rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg">
+                          <Download size={32} />
+                        </div>
+                        <h3 className="font-bold text-slate-800 text-lg mb-2">ติดตั้งแอปพลิเคชัน</h3>
+                        <p className="text-slate-500 text-sm mb-6 max-w-sm">
+                          คุณสามารถติดตั้งแอปนี้ลงบนหน้าจอโฮมของอุปกรณ์ เพื่อใช้งานได้สะดวกรวดเร็วเสมือนแอปพลิเคชันทั่วไป 
+                          รองรับทั้ง iOS และ Android
+                        </p>
+                        
+                        <button 
+                          onClick={handleInstallClick}
+                          className="bg-[#006655] text-white px-6 py-3.5 rounded-xl font-bold hover:bg-teal-700 transition-colors shadow-md flex items-center gap-2 w-full md:w-auto justify-center active:scale-95"
+                        >
+                          <Download size={18} />
+                          {isInstallable ? 'คลิกเพื่อติดตั้งทันที' : 'ดูวิธีการติดตั้ง'}
+                        </button>
+                        
+                        {!isInstallable && (
+                          <div className="mt-6 text-left w-full bg-white p-4 rounded-xl border border-slate-200 text-sm text-slate-600">
+                            <p className="font-bold text-slate-800 mb-2 flex items-center gap-2"><CheckCircle2 size={16} className="text-[#006655]"/>วิธีการติดตั้งแบบ Manual</p>
+                            <ul className="space-y-2 list-disc pl-4 marker:text-slate-300">
+                              <li><b>iPhone/iPad (Safari):</b> แตะไอคอน <span className="bg-slate-100 px-1 rounded border border-slate-200">แชร์</span> ด้านล่างหน้าจอ จากนั้นเลื่อนหาคำว่า <b>"เพิ่มไปยังหน้าจอโฮม"</b> (Add to Home Screen)</li>
+                              <li><b>Android (Chrome):</b> แตะไอคอน <span className="bg-slate-100 px-1 rounded border border-slate-200">⋮</span> มุมขวาบน แล้วเลือก <b>"เพิ่มลงในหน้าจอหลัก"</b> หรือ <b>"ติดตั้งแอป"</b></li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // Views
+        // ==========================================
+        const DecisionSupportView = ({ decisionRules }) => { 
+          const [selectedReq, setSelectedReq]       = useState(''); const [userInputs, setUserInputs]         = useState({}); const [analysisResult, setAnalysisResult] = useState(null); const [isAnalyzing, setIsAnalyzing]       = useState(false);
+          const requestTypes  = useMemo(() => [...new Set(decisionRules.map(r => r.requestType))], [decisionRules]);
+          const dynamicFields = useMemo(() => { if (!selectedReq) return []; const rulesForReq = decisionRules.filter(r => r.requestType === selectedReq); const fieldMap = {}; rulesForReq.forEach(rule => rule.conditions.forEach(cond => { if (!cond.field) return; if (!fieldMap[cond.field]) fieldMap[cond.field] = { name: cond.field, type: 'select', options: new Set() }; const op = (cond.operator || '').trim(); if (['มากกว่า','น้อยกว่า','มากกว่าหรือเท่ากับ','น้อยกว่าหรือเท่ากับ','ระหว่าง'].includes(op)) { fieldMap[cond.field].type = 'number'; } else if (op === 'มีคำว่า') { fieldMap[cond.field].type = 'text'; } else { if (op === 'อยู่ในกลุ่ม') cond.value.split(',').forEach(v => fieldMap[cond.field].options.add(v.trim())); else if (cond.value) fieldMap[cond.field].options.add(cond.value.trim()); } })); return Object.values(fieldMap).map(f => ({ ...f, options: Array.from(f.options).filter(Boolean) })); }, [selectedReq, decisionRules]);
+          const handleAnalyze = () => { setIsAnalyzing(true); setAnalysisResult(null); setTimeout(() => { const rulesForReq = decisionRules.filter(r => r.requestType === selectedReq); const matchedRule = rulesForReq.find(rule => { if (rule.conditions.length === 0) return true; let result = evalCondition(rule.conditions[0], userInputs[rule.conditions[0].field]); for (let i = 1; i < rule.conditions.length; i++) { const cond = rule.conditions[i]; const prevLogic = (rule.conditions[i - 1].logic || 'AND').toUpperCase(); const val = evalCondition(cond, userInputs[cond.field]); if (prevLogic === 'OR') result = result || val; else result = result && val; } return result; }); setAnalysisResult(matchedRule || 'not_found'); setIsAnalyzing(false); }, 400); };
+          const StatusIconMap = { error: ShieldAlert, warning: FileWarning, success: CheckCircle, info: Info }; const StatusColorMap = { error: 'border-rose-200 bg-rose-50', warning: 'border-amber-200 bg-amber-50', success: 'border-green-200 bg-green-50', info: 'border-indigo-200 bg-indigo-50', }; const StatusTextMap = { error: 'text-rose-700', warning: 'text-amber-700', success: 'text-green-700', info: 'text-indigo-700', };
+          const OP_LABELS = { 'เท่ากับ':'=', 'ไม่เท่ากับ':'≠', 'อยู่ในกลุ่ม':'∈', 'ไม่อยู่ในกลุ่ม':'∉', 'มากกว่า':'>', 'มากกว่าหรือเท่ากับ':'≥', 'น้อยกว่า':'<', 'น้อยกว่าหรือเท่ากับ':'≤', 'ระหว่าง':'↔', 'มีคำว่า':'≈', };
+
+          return (
+            <div className="flex-1 p-4 md:p-6 animate-in fade-in flex flex-col min-h-0">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 shrink-0"><div className="flex items-center gap-3 mb-1 text-indigo-800"><Cpu size={22} /><h2 className="font-bold text-lg">Decision Support</h2></div><p className="text-sm text-indigo-600">วิเคราะห์ข้อเท็จจริงตามกฎเงื่อนไข รองรับ AND/OR, Range, ตัวเลข</p></div>
+              <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0">
+                <div className="space-y-4 md:w-1/3 shrink-0 overflow-y-auto pr-1">
+                  <div><label className="block text-sm font-semibold text-slate-700 mb-1">ประเภทคำขอ</label><select className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={selectedReq} onChange={e => { setSelectedReq(e.target.value); setUserInputs({}); setAnalysisResult(null); }}> <option value="">-- เลือกประเภทคำขอ --</option> {requestTypes.map(rt => <option key={rt} value={rt}>{String(rt)}</option>)} </select></div>
+                  {dynamicFields.map(field => ( <div key={field.name} className="animate-in slide-in-from-top-2"> <label className="block text-sm font-semibold text-slate-700 mb-1">{String(field.name)}</label> {field.type === 'select' ? ( <select className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={userInputs[field.name] || ''} onChange={e => { setUserInputs(prev => ({ ...prev, [field.name]: e.target.value })); setAnalysisResult(null); }}> <option value="">-- ระบุข้อมูล --</option> {field.options.map(opt => <option key={opt} value={opt}>{String(opt)}</option>)} </select> ) : ( <input type={field.type === 'number' ? 'number' : 'text'} placeholder={field.type === 'number' ? 'ระบุตัวเลข...' : 'ระบุข้อความ...'} className="w-full p-3 min-h-[48px] text-base rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={userInputs[field.name] || ''} onChange={e => { setUserInputs(prev => ({ ...prev, [field.name]: e.target.value })); setAnalysisResult(null); }} /> )} </div> ))}
+                  <button onClick={handleAnalyze} disabled={!selectedReq || Object.keys(userInputs).length === 0 || isAnalyzing} className={`w-full py-4 min-h-[52px] rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all mt-4 text-base ${(!selectedReq || Object.keys(userInputs).length === 0) ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-[0.98]'}`}> {isAnalyzing ? <><Loader2 size={20} className="animate-spin" /><span>กำลังประมวลผล...</span></> : <><ListChecks size={20} /><span>วิเคราะห์ผล</span></>} </button>
+                  {selectedReq && ( <div className="bg-slate-50 border border-slate-200 rounded-xl p-3"> <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Operators ที่รองรับ</p> <div className="flex flex-wrap gap-1"> {Object.entries(OP_LABELS).map(([k, v]) => ( <span key={k} className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-500 font-mono"> {v} {k} </span> ))} </div> </div> )}
+                </div>
+                <div className="md:w-2/3 flex-1 overflow-y-auto pr-1 pb-16 md:pb-4 space-y-3">
+                  {analysisResult && analysisResult !== 'not_found' && (() => { const status = analysisResult.status || 'info'; const StatusIcon = StatusIconMap[status] || Info; const borderBg = StatusColorMap[status] || StatusColorMap.info; const textColor = StatusTextMap[status] || StatusTextMap.info; return ( <div className="space-y-3 animate-in slide-in-from-bottom-4 fade-in duration-300"> <div className={`border rounded-2xl p-5 shadow-sm ${borderBg}`}> <h3 className={`font-bold text-lg flex items-center gap-2 mb-3 ${textColor}`}> <StatusIcon size={22} />{String(analysisResult.diagnosis || 'ผลการพิจารณา')} </h3> {analysisResult.summary && <p className={`mb-3 pb-3 border-b border-current/20 font-medium ${textColor}`}>{String(analysisResult.summary)}</p>} {analysisResult.reason && <p className="text-sm text-slate-600 leading-relaxed">{String(analysisResult.reason)}</p>} </div> {analysisResult.reference && ( <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Scale size={12} />กฎหมายอ้างอิง</p> <p className="text-sm text-slate-700 leading-relaxed">{String(analysisResult.reference)}</p> </div> )} {analysisResult.nextStep && ( <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-teal-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><ChevronRight size={12} />ขั้นตอนถัดไป</p> <p className="text-sm text-teal-800 leading-relaxed">{String(analysisResult.nextStep)}</p> </div> )} {analysisResult.documents?.length > 0 && ( <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"> <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} />เอกสารที่ต้องใช้</p> <ul className="space-y-1.5"> {analysisResult.documents.map((doc, i) => ( <li key={i} className="flex items-start gap-2 text-sm text-slate-700"> <CheckCircle size={14} className="text-green-500 shrink-0 mt-0.5" />{String(doc)} </li> ))} </ul> </div> )} {analysisResult.ruleId && ( <p className="text-[11px] text-slate-400 text-right px-1">Rule ID: {analysisResult.ruleId}</p> )} </div> ); })()}
+                  {analysisResult === 'not_found' && ( <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-700 animate-in fade-in"> <div className="flex items-center gap-2 font-bold mb-1"><AlertCircle size={20} />ไม่พบกฎที่ตรงกับเงื่อนไข</div> <p className="text-sm">ลองเปลี่ยนตัวเลือก หรือตรวจสอบข้อมูลใน Sheets</p> </div> )}
+                  {!analysisResult && selectedReq && dynamicFields.length > 0 && ( <div className="text-center py-12 text-slate-400"> <ListChecks size={36} className="mx-auto mb-3 text-slate-200" /> <p>กรอกข้อมูลและกด "วิเคราะห์ผล"</p> </div> )}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const ChatbotView = ({ chatbotData, onMiss }) => { 
+          const categories = useMemo(() => [...new Set(chatbotData.map(d => d.category))], [chatbotData]); const [selectedCategory, setSelectedCategory] = useState(categories[0] || ''); const [messages, setMessages] = useState([{ sender: 'bot', text: 'สวัสดีค่ะ! มีคำถามอะไรให้ช่วยไหมคะ?' }]); const [input, setInput] = useState(''); const messagesEndRef = useRef(null);
+          useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+          const handleSend = (e) => { e.preventDefault(); if (!input.trim()) return; const userMsg = input.trim(); setMessages(prev => [...prev, { sender: 'user', text: userMsg }]); setInput(''); setTimeout(() => { let bestMatch = null, maxScore = 0; const lowerInput = userMsg.toLowerCase(); chatbotData.filter(d => d.category === selectedCategory).forEach(item => { let score = 0; item.keywords.forEach(kw => { if (lowerInput.includes(kw)) score++; }); if (score > maxScore) { maxScore = score; bestMatch = item.answer; } }); if (!bestMatch && onMiss) onMiss(userMsg, selectedCategory); setMessages(prev => [...prev, { sender: 'bot', text: String(bestMatch || 'ไม่พบข้อมูลที่ตรงกับคำถามของคุณในหมวดหมู่นี้ค่ะ') }]); }, 500); };
+
+          return (
+            <div className="flex-1 flex flex-col bg-slate-50/50 min-h-0">
+              <div className="bg-[#006655] text-white p-4 shadow-md shrink-0"> <div className="flex items-center gap-3 mb-3"> <div className="bg-white/20 p-2 rounded-full"><Bot size={24} /></div> <h2 className="font-bold text-lg">Chatbot ถาม-ตอบ</h2> </div> {categories.length > 0 && ( <select className="w-full bg-[#005544] text-white p-2 rounded-xl text-sm border border-teal-400/30 outline-none" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}> {categories.map(cat => <option key={cat} value={cat}>{String(cat)}</option>)} </select> )} </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4"> {messages.map((msg, idx) => ( <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-[#006655] text-white' : 'bg-white text-slate-800 shadow-sm border border-slate-200'}`}> <div className="whitespace-pre-wrap">{String(msg.text)}</div> </div> </div> ))} <div ref={messagesEndRef} /> </div>
+              <form onSubmit={handleSend} className="p-3 bg-white border-t flex gap-2 items-center shrink-0"> <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="พิมพ์ข้อความ..." className="flex-1 bg-slate-100 border rounded-full px-4 py-3 min-h-[44px] outline-none focus:ring-2 focus:ring-[#006655] text-base" /> <button type="submit" className="bg-[#006655] text-white w-11 h-11 flex items-center justify-center rounded-full hover:bg-teal-700 active:scale-95 transition-all shrink-0"><Send size={20} /></button> </form>
+            </div>
+          );
+        };
+
+        const LegalSearchView = () => {
+          const [apiKey, setApiKey] = useState(''); const [hasSavedKey, setHasSavedKey] = useState(false); const [searchMode, setSearchMode] = useState('ai_search');
+          const [aiQuestion, setAiQuestion] = useState(''); const [aiTopK, setAiTopK] = useState(10); const [lawCode, setLawCode] = useState('ป.วิ.อ.'); const [lawSections, setLawSections] = useState('43, 44/1'); const [lawTopK, setLawTopK] = useState(10); const [dekaNo, setDekaNo] = useState('2412/2562');
+          const [isLoading, setIsLoading] = useState(false); const [error, setError] = useState(null); const [results, setResults] = useState(null); const [rawJson, setRawJson] = useState(null); const [endpointLabel, setEndpointLabel] = useState('');
+
+          useEffect(() => { const savedKey = localStorage.getItem('slegal_api_key'); if (savedKey) { setApiKey(savedKey); setHasSavedKey(true); } }, []);
+          const handleSaveKey = () => { if (!apiKey.trim()) return; localStorage.setItem('slegal_api_key', apiKey.trim()); setHasSavedKey(true); };
+
+          const executeRequest = async () => {
+            setError(null); setResults(null); setRawJson(null);
+            if (!hasSavedKey || !apiKey.trim()) { setError('กรุณาระบุ API Key และกดบันทึกก่อนทำรายการ'); setHasSavedKey(false); return; }
+            let targetUrl = ''; let payload = {};
+            if (searchMode === 'ai_search') { targetUrl = 'https://api.slegaltools.digital/api/search/ai'; payload = { question: aiQuestion.trim() || "ตัวแทนโบรคเกอร์", top_k: parseInt(aiTopK) || 10 }; } else if (searchMode === 'search_by_law') { targetUrl = 'https://api.slegaltools.digital/api/search/law'; const sectionsArray = lawSections.split(',').map(s => s.trim()).filter(s => s); payload = { law_code: lawCode.trim() || "ป.วิ.อ.", sections: sectionsArray, top_k: parseInt(lawTopK) || 10 }; } else if (searchMode === 'get_deka') { targetUrl = 'https://api.slegaltools.digital/api/tool/get_deka_case'; payload = { deka_no: dekaNo.trim(), include_long_text: true, include_law_refs: true }; }
+            setIsLoading(true); setEndpointLabel(`POST ${targetUrl}`);
+            try { const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl); const response = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` }, body: JSON.stringify(payload) }); if (!response.ok) { throw new Error(`เซิร์ฟเวอร์ตอบกลับรหัส: ${response.status}`); } const data = await response.json(); setRawJson(data); let items = []; if (data?.data?.results && Array.isArray(data.data.results)) { items = data.data.results; } else if (data?.data?.case) { items = [data.data.case]; } else if (data?.data?.deka_no || data?.data?.title) { items = [data.data]; } else if (data?.deka_no || data?.title) { items = [data]; } else if (Array.isArray(data)) { items = data; } setResults(items); } catch (err) { setError(err.message); } finally { setIsLoading(false); }
+          };
+
+          return (
+            <div className="p-4 md:p-6 animate-in fade-in">
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-6"> <div className="flex items-center gap-3 mb-1 text-emerald-800"> <Scale size={22} /> <h2 className="font-bold text-lg">SLegalTools API Explorer</h2> </div> <p className="text-sm text-emerald-600">ค้นหาคำพิพากษาศาลฎีกาด้วย AI และการค้นหาตามมาตรา</p> </div>
+                <div className="space-y-6">
+                  {!hasSavedKey ? ( <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200"> <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"> <Key size={16} /> API Key (Bearer Token) </label> <div className="flex gap-2"> <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" placeholder="วาง API Key ของคุณที่นี่..." /> <button onClick={handleSaveKey} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-xl font-bold transition-colors"> บันทึก </button> </div> </div> ) : ( <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 flex justify-between items-center"> <div className="flex items-center gap-2 text-emerald-700"> <Check size={20} /> <span className="font-bold text-sm">ระบบจดจำ API Key ไว้แล้ว</span> </div> <button onClick={() => setHasSavedKey(false)} className="text-xs text-emerald-700 bg-emerald-200 hover:bg-emerald-300 px-3 py-1.5 rounded-lg transition-colors font-medium"> แก้ไข Key </button> </div> )}
+                  <div> <label className="block text-sm font-bold text-slate-700 mb-2">เลือกโหมดการค้นหา</label> <select value={searchMode} onChange={e => setSearchMode(e.target.value)} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base bg-white" > <option value="ai_search">🤖 ค้นหาด้วยคำถาม AI (/api/search/ai)</option> <option value="search_by_law">📖 ค้นตามมาตรากฎหมาย (/api/search/law)</option> <option value="get_deka">🔍 ค้นตรงเลขฎีกา (/api/tool/get_deka_case)</option> </select> </div>
+                  {searchMode === 'ai_search' && ( <div className="space-y-4 bg-blue-50/50 p-5 rounded-2xl border border-blue-100 animate-in slide-in-from-top-2"> <div> <label className="block text-sm font-bold text-blue-900 mb-2">คำค้นหา / คำถาม</label> <textarea value={aiQuestion} onChange={e => setAiQuestion(e.target.value)} rows="2" className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-base" placeholder="เช่น ตัวแทนโบรคเกอร์ พรก กู้ยืมเงิน" /> </div> <div> <label className="block text-sm font-bold text-blue-900 mb-2">Top K (จำนวนผลลัพธ์)</label> <input type="number" value={aiTopK} onChange={e => setAiTopK(e.target.value)} className="w-32 px-4 py-2 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-base" /> </div> </div> )}
+                  {searchMode === 'search_by_law' && ( <div className="space-y-4 bg-amber-50/50 p-5 rounded-2xl border border-amber-100 animate-in slide-in-from-top-2"> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <div> <label className="block text-sm font-bold text-amber-900 mb-2">ตัวย่อกฎหมาย (law_code)</label> <input type="text" value={lawCode} onChange={e => setLawCode(e.target.value)} className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-base" /> </div> <div> <label className="block text-sm font-bold text-amber-900 mb-2">เลขมาตรา (คั่นด้วยลูกน้ำ)</label> <input type="text" value={lawSections} onChange={e => setLawSections(e.target.value)} className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-base" placeholder="เช่น 43, 44/1" /> </div> </div> <div> <label className="block text-sm font-bold text-amber-900 mb-2">Top K (จำนวนผลลัพธ์)</label> <input type="number" value={lawTopK} onChange={e => setLawTopK(e.target.value)} className="w-32 px-4 py-2 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-base" /> </div> </div> )}
+                  {searchMode === 'get_deka' && ( <div className="space-y-4 bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 animate-in slide-in-from-top-2"> <div> <label className="block text-sm font-bold text-emerald-900 mb-2">เลขคดีฎีกา</label> <input type="text" value={dekaNo} onChange={e => setDekaNo(e.target.value)} className="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base" /> <p className="text-xs text-emerald-700 mt-2">*ระบบจะทำการขอข้อมูลแบบ <b>include_long_text</b> ให้โดยอัตโนมัติ เพื่อให้ได้เนื้อหาฉบับเต็ม</p> </div> </div> )}
+                  <button onClick={executeRequest} disabled={isLoading} className="w-full bg-slate-800 text-white font-bold py-4 px-4 rounded-2xl hover:bg-slate-900 transition-all focus:outline-none focus:ring-4 focus:ring-slate-200 flex justify-center items-center gap-2 shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed" > {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />} {isLoading ? 'กำลังค้นหา...' : 'ค้นหาข้อมูล'} </button>
+                </div>
+                {error && ( <div className="mt-6 p-4 bg-rose-50 text-rose-700 rounded-2xl border border-rose-200 text-sm flex items-start gap-2"> <AlertCircle size={18} className="shrink-0 mt-0.5" /> <div><strong className="font-bold">เกิดข้อผิดพลาด:</strong> {error}</div> </div> )}
+                {results && ( <div className="mt-8 animate-in slide-in-from-bottom-4"> <div className="flex justify-between items-center mb-4"> <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"> <CheckCircle2 className="text-emerald-500" size={24} /> ผลการค้นหา </h3> <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-2 py-1 rounded-lg font-mono"> {endpointLabel} </span> </div> <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl overflow-y-auto max-h-[600px] shadow-sm"> {results.length === 0 ? ( <p className="text-slate-500 text-center py-8">ไม่พบข้อมูลที่ตรงกับคำค้นหา</p> ) : ( results.map((item, index) => { const title = item.title || `คำพิพากษาศาลฎีกาที่ ${item.deka_no || '-'}`; const text = item.long_text || item.short_text || 'ไม่มีรายละเอียดข้อความ'; return ( <div key={index} className="mb-6 pb-6 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0"> <h4 className="text-lg font-bold text-[#006655] mb-3 flex items-center flex-wrap gap-2"> {results.length > 1 && <span className="bg-emerald-100 text-emerald-800 w-6 h-6 flex items-center justify-center rounded-full text-xs">{index + 1}</span>} {title} {item.score && <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Score: {item.score.toFixed(2)}</span>} </h4> <p className="text-slate-700 text-sm md:text-base leading-relaxed text-justify whitespace-pre-wrap">{text}</p> </div> ); }) )} </div> <details className="mt-4 text-sm text-slate-500 cursor-pointer group"> <summary className="font-medium group-hover:text-slate-800 transition-colors">ดูข้อมูล JSON ดิบ (สำหรับตรวจสอบ)</summary> <pre className="mt-3 bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-[10px] font-mono shadow-inner"> {JSON.stringify(rawJson, null, 2)} </pre> </details> </div> )}
+              </div>
+            </div>
+          );
+        };
+
+        const WebEmbedView = ({ url, title, icon: Icon = Globe, theme = 'purple' }) => {
+          const [isLoading, setIsLoading] = useState(true);
+
+          const THEMES = {
+            purple: { spinner: 'text-purple-500' },
+            rose: { spinner: 'text-rose-500' }
+          };
+          
+          const t = THEMES[theme] || THEMES.purple;
+
+          return (
+            <div className="absolute top-0 left-0 right-0 bottom-[72px] md:bottom-0 animate-in fade-in bg-slate-50 z-0">
+              {isLoading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-10 backdrop-blur-sm">
+                  <Loader2 className={`animate-spin ${t.spinner} mb-3`} size={36} />
+                  <p className="text-sm text-slate-500 font-medium bg-white px-4 py-1.5 rounded-full shadow-sm">
+                    กำลังโหลดหน้าเว็บ...
+                  </p>
+                </div>
+              )}
+              <iframe
+                src={url}
+                className="absolute inset-0 w-full h-full border-none bg-white"
+                title={title}
+                onLoad={() => setIsLoading(false)}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+              />
+            </div>
+          );
+        };
+
+
+        // ==========================================
+        // Bottom / Side Navigation
+        // ==========================================
+        const NAV_ITEMS = [
+          { id: 'manual',       label: 'คู่มือ',   Icon: BookOpen,      color: 'teal'   },
+          { id: 'archive',      label: 'คลัง',     Icon: Library,       color: 'blue'   },
+          { id: 'decision',     label: 'Decision', Icon: Cpu,           color: 'indigo' },
+          { id: 'legal_search', label: 'ค้นฎีกา',   Icon: Scale,         color: 'emerald'}, 
+          { id: 'ocs_comment',  label: 'กฤษฎีกา',   Icon: Globe,         color: 'purple' },
+          { id: 'supreme_court',label: 'ศาลฎีกา',   Icon: Gavel,         color: 'rose'   }, 
+          { id: 'chatbot',      label: 'ถาม-ตอบ',  Icon: MessageCircle, color: 'cyan'   },
+          { id: 'favorites',    label: 'บันทึก',   Icon: Star,          color: 'amber'  },
+        ];
+
+        const NAV_COLOR_MAP = {
+          teal:    { active: 'text-teal-600',    activeBg: 'bg-teal-50',    dot: 'bg-teal-500'    },
+          blue:    { active: 'text-blue-600',    activeBg: 'bg-blue-50',    dot: 'bg-blue-500'    },
+          indigo:  { active: 'text-indigo-600',  activeBg: 'bg-indigo-50',  dot: 'bg-indigo-500'  },
+          emerald: { active: 'text-emerald-600', activeBg: 'bg-emerald-50', dot: 'bg-emerald-500' }, 
+          purple:  { active: 'text-purple-600',  activeBg: 'bg-purple-50',  dot: 'bg-purple-500'  },
+          rose:    { active: 'text-rose-600',    activeBg: 'bg-rose-50',    dot: 'bg-rose-500'    }, 
+          cyan:    { active: 'text-cyan-600',    activeBg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
+          amber:   { active: 'text-amber-500',   activeBg: 'bg-amber-50',   dot: 'bg-amber-400'   },
+        };
+
+        const FavoritesView = ({ bookmarks, onNavigate, onRemove }) => { 
+          const META = { 
+            manual: { label: 'คู่มือ', Icon: BookOpen, badge: 'bg-teal-100 text-teal-700' }, 
+            archive: { label: 'คลังเอกสาร', Icon: Library, badge: 'bg-blue-100 text-blue-700' }, 
+            decision: { label: 'Decision', Icon: Cpu, badge: 'bg-indigo-100 text-indigo-700'}, 
+            chatbot: { label: 'ถาม-ตอบ', Icon: MessageCircle, badge: 'bg-cyan-100 text-cyan-700' }, 
+            legal_search: { label: 'ค้นฎีกา', Icon: Scale, badge: 'bg-emerald-100 text-emerald-700' }, 
+            ocs_comment: { label: 'กฤษฎีกา', Icon: Globe, badge: 'bg-purple-100 text-purple-700' },
+            supreme_court: { label: 'ศาลฎีกา', Icon: Gavel, badge: 'bg-rose-100 text-rose-700' }
+          };
+          if (bookmarks.length === 0) { return ( <div className="flex flex-col items-center justify-center h-full p-10 text-center text-slate-400 gap-4"> <Star size={48} className="text-slate-200" /> <p className="font-semibold text-lg">ยังไม่มีรายการบันทึก</p> <p className="text-sm">กดปุ่ม ⭐ ที่หัวข้อใดก็ได้เพื่อบันทึกไว้ที่นี่</p> </div> ); }
+          return ( <div className="p-4 md:p-6 animate-in fade-in"> <div className="flex items-center justify-between mb-5"> <h2 className="font-bold text-[#006655] text-lg flex items-center gap-2"> <Star size={20} className="text-amber-400" fill="currentColor" /> รายการที่บันทึกไว้ ({bookmarks.length}) </h2> <button onClick={() => { if (window.confirm('ล้างรายการทั้งหมด?')) { bookmarkSave([]); onRemove([]); } }} className="text-xs text-slate-400 hover:text-rose-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-50"> ล้างทั้งหมด </button> </div> <div className="flex flex-col gap-3"> {bookmarks.map(item => { const meta = META[item.tab] || META.manual; const Icon = meta.Icon; return ( <div key={item.id} className="flex items-center gap-3 bg-[#F0FAF5] border border-teal-100/50 rounded-2xl px-4 py-3 min-h-[64px] group hover:shadow-md transition-all"> <button onClick={() => onNavigate(item)} className="flex-1 flex items-center gap-3 text-left min-w-0"> <div className="bg-white p-2 rounded-xl border border-teal-100 shrink-0"><Icon size={18} className="text-[#006655]" /></div> <div className="min-w-0"> <p className="font-bold text-[#006655] text-sm truncate">{item.title}</p> {item.path?.length > 0 && ( <p className="text-[11px] text-slate-400 truncate">{item.path.filter(Boolean).join(' › ')}</p> )} </div> </button> <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${meta.badge}`}>{meta.label}</span> <button onClick={() => onRemove(bookmarks.filter(b => b.id !== item.id))} className="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:text-rose-400 hover:bg-rose-50 transition-all shrink-0 opacity-0 group-hover:opacity-100" aria-label="ลบออก"> <X size={15} /> </button> </div> ); })} </div> </div> );
+        };
+
+        const BottomNav = ({ activeTab, onSelect, bookmarkCount }) => (
+          <nav className="fixed md:static bottom-0 w-full md:w-24 lg:w-28 bg-white md:bg-slate-50/80 border-t md:border-t-0 md:border-r border-slate-200 flex md:flex-col justify-around md:justify-start items-stretch h-[72px] md:h-full md:pt-6 md:pb-8 z-40 order-2 md:order-1 shadow-[0_-4px_12px_rgba(0,0,0,0.07)] md:shadow-none overflow-x-auto scrollbar-none">
+            {NAV_ITEMS.map(({ id, label, Icon, color }) => {
+              const isActive = activeTab === id; const c = NAV_COLOR_MAP[color]; const showBadge = id === 'favorites' && bookmarkCount > 0;
+              return (
+                <button key={id} onClick={() => onSelect(id)} className={`relative flex flex-col items-center justify-center gap-1 flex-1 md:flex-none md:w-full md:py-4 md:px-2 min-h-[56px] min-w-[64px] md:min-h-0 rounded-none md:rounded-xl mx-0 md:mx-2 md:mb-1 transition-all duration-150 ${isActive ? `${c.active} md:${c.activeBg}` : 'text-slate-400 hover:text-slate-600'}`} aria-label={label}>
+                  {isActive && ( <><span className={`absolute top-0 left-1/4 right-1/4 h-0.5 ${c.dot} rounded-full md:hidden`} /><span className={`hidden md:block absolute left-0 top-3 bottom-3 w-1 ${c.dot} rounded-full`} /></> )}
+                  <div className="relative"> <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} fill={id === 'favorites' && isActive ? 'currentColor' : 'none'} /> {showBadge && ( <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-0.5 bg-amber-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"> {bookmarkCount > 99 ? '99+' : bookmarkCount} </span> )} </div>
+                  <span className={`text-[10px] md:text-xs font-semibold tracking-tight leading-none ${isActive ? 'font-bold' : ''}`}>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        );
+
+        // ==========================================
+        // 5. Main App
+        // ==========================================
+        function App() {
+          const [activeTab, setActiveTab]       = useState('manual');
+          const [adminOpen, setAdminOpen]       = useState(false);
+          const [sheetUrls, setSheetUrls]       = useState({ ...DEFAULT_URLS });
+          const [rawManualRows, setRawManualRows]     = useState([]);
+          const [rawDecisionRows, setRawDecisionRows] = useState([]);
+          const [rawChatbotRows, setRawChatbotRows]   = useState([]);
+          const [rawArchiveRows, setRawArchiveRows]   = useState([]);
+          const [loadSources, setLoadSources]   = useState([]);
+          const [isLoading, setIsLoading]       = useState(true);
+          const [loadError, setLoadError]       = useState(false);
+          const [viewState, setViewState]       = useState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
+          const [searchQuery, setSearchQuery]   = useState('');
+          const [decisionResetKey, setDecisionResetKey] = useState(0);
+          const [newDataNotice, setNewDataNotice]       = useState(null);
+
+          const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
+          const { markVisited, isVisited } = useVisited();
+          const bookmarkCtxVal = useMemo(() => ({ toggle: toggleBookmark, isBookmarked }), [toggleBookmark, isBookmarked]);
+          const visitedCtxVal  = useMemo(() => ({ markVisited, isVisited }), [markVisited, isVisited]);
+          const { trackPageview, trackSearch, trackChatbotMiss } = useAnalytics();
+          const [, forceBookmarkSync] = useState(0);
+          useEffect(() => { const handler = () => forceBookmarkSync(n => n + 1); window.addEventListener('app_bookmark_update', handler); return () => window.removeEventListener('app_bookmark_update', handler); }, []);
+
+          const manualDatabase  = useMemo(() => transformManualData(rawManualRows),   [rawManualRows]);
+          const decisionRules   = useMemo(() => transformDecisionData(rawDecisionRows), [rawDecisionRows]);
+          const archiveDatabase = useMemo(() => transformArchiveData(rawArchiveRows),  [rawArchiveRows]);
+          const chatbotData     = rawChatbotRows;
+
+          const currentMain    = useMemo(() => manualDatabase.find(m => m.id === viewState.mainId),            [manualDatabase, viewState.mainId]);
+          const currentSub     = useMemo(() => currentMain?.subCategories.find(s => s.id === viewState.subId), [currentMain, viewState.subId]);
+          const currentTopic   = useMemo(() => currentSub?.topics.find(t => t.id === viewState.topicId),       [currentSub, viewState.topicId]);
+          const currentArcMain = useMemo(() => archiveDatabase.find(m => m.id === viewState.mainId),           [archiveDatabase, viewState.mainId]);
+          const currentArcSub1 = useMemo(() => currentArcMain?.subCategories?.find(s => s.id === viewState.subId), [currentArcMain, viewState.subId]);
+          const currentArcSub2 = useMemo(() => currentArcSub1?.topics?.find(t => t.id === viewState.topicId),      [currentArcSub1, viewState.topicId]);
+
+          const abortRef = useRef(null);
+
+          const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false) => {
+            if (abortRef.current) abortRef.current.abort(); const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
+            setIsLoading(true); setLoadError(false);
+            const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
+            setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
+            
+            const fetchWithTimeout = async (fetchUrl) => {
+              const fetchController = new AbortController();
+              const id = setTimeout(() => fetchController.abort(), 15000); 
+              if (signal) signal.addEventListener('abort', () => fetchController.abort());
+              try {
+                const res = await fetch(fetchUrl, { signal: fetchController.signal });
+                clearTimeout(id);
+                return res;
+              } catch (e) {
+                clearTimeout(id);
+                throw e;
+              }
+            };
+
+            const fetchCSV = async (cacheKey, url) => { 
+              if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return cached; } 
+              try {
+                const r = await fetchWithTimeout(url); 
+                if (!r.ok) throw new Error(`HTTP ${r.status}`); 
+                const rows = parseCSV(await r.text()); 
+                cacheSet(cacheKey, rows); 
+                return rows; 
+              } catch (err) {
+                if (err.name === 'AbortError' && signal.aborted) throw err;
+                console.warn(`Direct fetch failed for ${cacheKey}, trying proxy...`, err);
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const rp = await fetchWithTimeout(proxyUrl);
+                if (!rp.ok) throw new Error(`Proxy HTTP ${rp.status}`);
+                const rowsP = parseCSV(await rp.text());
+                cacheSet(cacheKey, rowsP);
+                return rowsP;
+              }
+            };
+
+            let anyError = false;
+
+            try {
+              updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') { updateSource('manual', 'error'); anyError = true; } }
+              if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') { updateSource('decision', 'error'); anyError = true; } }
+              if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') { updateSource('archive', 'error'); anyError = true; } }
+              if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') { updateSource('chatbot', 'error'); anyError = true; } }
+            } catch (err) { 
+              if (err.name !== 'AbortError') { console.error(err); anyError = true; } 
+            } finally { 
+              if (!signal.aborted) {
+                if (anyError) setLoadError(true);
+                setIsLoading(false); 
+              }
+            }
+          }, [sheetUrls]);
+
+          useEffect(() => { loadDataFromSheets(); return () => abortRef.current?.abort(); }, []);
+
+          const prevCountsRef = useRef(null);
+          useEffect(() => {
+            if (isLoading) return; const current = { manual: rawManualRows.length, decision: rawDecisionRows.length, archive: rawArchiveRows.length, chatbot: rawChatbotRows.length, };
+            if (prevCountsRef.current) { const diff = {}; Object.keys(current).forEach(k => { const delta = current[k] - prevCountsRef.current[k]; if (delta > 0) diff[k] = delta; }); if (Object.keys(diff).length > 0) setNewDataNotice(diff); }
+            prevCountsRef.current = current;
+          }, [isLoading]);
+
+          const handleUpdateUrls = (newUrls) => { cacheClear(); setSheetUrls(newUrls); };
+
+          const handleGlobalNavigate = useCallback((result) => {
+            setSearchQuery(''); setActiveTab(result.tab); trackPageview(result.tab, result.title, result.path);
+            if (result.tab === 'manual') { const { mainId, subId, topicId, sectionKey, level } = result.ids; setViewState({ level: level || 'detail', mainId: mainId || null, subId: subId || null, topicId: topicId || null, sectionKey: sectionKey || null }); } 
+            else if (result.tab === 'archive') { const { mainId, subId, topicId, level } = result.ids; setViewState({ level: level || 'archiveContent', mainId: mainId || null, subId: subId || null, topicId: topicId || null, sectionKey: null }); } 
+            else { setViewState({ level: result.tab === 'archive' ? 'archiveMain' : 'main', mainId: null, subId: null, topicId: null, sectionKey: null }); if (result.tab === 'decision') setDecisionResetKey(prev => prev + 1); }
+          }, []);
+
+          const getHeaderTitle = () => {
+            if (activeTab === 'decision')      return 'ระบบช่วยตัดสินใจ';
+            if (activeTab === 'chatbot')       return 'Chatbot ถาม-ตอบ';
+            if (activeTab === 'legal_search')  return 'ค้นคำพิพากษาศาลฎีกา'; 
+            if (activeTab === 'ocs_comment')   return 'สืบค้นความเห็นคณะกรรมการกฤษฎีกา';
+            if (activeTab === 'supreme_court') return 'ระบบสืบค้นคำพิพากษาศาลฎีกา';
+            if (activeTab === 'favorites')     return 'รายการที่บันทึกไว้';
+            if (activeTab === 'archive') {
+              if (viewState.level === 'archiveSub1') return currentArcMain?.title || 'เมนูย่อย 1';
+              if (viewState.level === 'archiveSub2') return currentArcSub1?.title || 'เมนูย่อย 2';
+              if (viewState.level === 'archiveContent') return currentArcSub2?.title || 'รายการเอกสาร';
+              return 'คลังเอกสาร';
+            }
+            switch (viewState.level) {
+              case 'sub': return currentMain?.title || 'หมวดหมู่ย่อย'; case 'topics': return currentSub?.title || 'เลือกเรื่อง'; case 'detail': return currentTopic?.title || 'หัวข้อย่อย'; case 'content': return currentTopic?.title || 'รายละเอียด'; default: return 'คู่มืองานทะเบียนที่ดิน';
+            }
+          };
+
+          const handleGoBack = () => {
+            setSearchQuery('');
+            if (activeTab === 'manual') { if (viewState.level === 'content') setViewState({ ...viewState, level: 'detail', sectionKey: null }); else if (viewState.level === 'detail') setViewState({ ...viewState, level: 'topics', topicId: null }); else if (viewState.level === 'topics') setViewState({ ...viewState, level: 'sub', subId: null }); else if (viewState.level === 'sub') setViewState({ ...viewState, level: 'main', mainId: null }); } 
+            else if (activeTab === 'archive') { if (viewState.level === 'archiveContent') setViewState({ ...viewState, level: 'archiveSub2', topicId: null }); else if (viewState.level === 'archiveSub2') setViewState({ ...viewState, level: 'archiveSub1', subId: null }); else if (viewState.level === 'archiveSub1') setViewState({ ...viewState, level: 'archiveMain', mainId: null }); }
+          };
+
+          const handleNavSelect = (id) => {
+            setSearchQuery(''); setActiveTab(id);
+            if (id === 'manual') setViewState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
+            if (id === 'archive') setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null });
+            if (id === 'decision') setDecisionResetKey(prev => prev + 1);
+          };
+
+          const showBack = (activeTab === 'manual' && viewState.level !== 'main') || (activeTab === 'archive' && viewState.level !== 'archiveMain');
+
+          const breadcrumbItems = useMemo(() => {
+            if (activeTab === 'manual') {
+              const items = [{ label: 'คู่มือ', onClick: () => { setViewState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null }); setSearchQuery(''); } }];
+              if (['sub','topics','detail','content'].includes(viewState.level)) { if (currentMain) items.push({ label: currentMain.title, onClick: () => { setViewState({ level: 'sub', mainId: viewState.mainId, subId: null, topicId: null, sectionKey: null }); setSearchQuery(''); } }); }
+              if (['topics','detail','content'].includes(viewState.level)) { if (currentSub?.title) items.push({ label: currentSub.title, onClick: () => { setViewState({ level: 'topics', mainId: viewState.mainId, subId: viewState.subId, topicId: null, sectionKey: null }); setSearchQuery(''); } }); }
+              if (['detail','content'].includes(viewState.level)) { if (currentTopic) items.push({ label: currentTopic.title, onClick: () => { setViewState({ level: 'detail', mainId: viewState.mainId, subId: viewState.subId, topicId: viewState.topicId, sectionKey: null }); setSearchQuery(''); } }); }
+              if (viewState.level === 'content') { const labels = { meaning: 'ความหมาย', summary: 'ขั้นตอน', laws: 'กฎหมาย', courtRulings: 'คำพิพากษา', councilRulings: 'กฤษฎีกา', deptRulings: 'คำวินิจฉัย', qna: 'ถาม-ตอบ', handbooks: 'คู่มือ' }; items.push({ label: labels[viewState.sectionKey] || viewState.sectionKey }); }
+              return items.length > 1 ? items : [];
+            }
+            if (activeTab === 'archive') {
+              const items = [{ label: 'คลัง', onClick: () => { setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null }); setSearchQuery(''); } }];
+              if (['archiveSub1','archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcMain) items.push({ label: currentArcMain.title, onClick: () => { setViewState({ level: 'archiveSub1', mainId: viewState.mainId, subId: null, topicId: null }); setSearchQuery(''); } }); }
+              if (['archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcSub1?.title) items.push({ label: currentArcSub1.title, onClick: () => { setViewState({ level: 'archiveSub2', mainId: viewState.mainId, subId: viewState.subId, topicId: null }); setSearchQuery(''); } }); }
+              if (viewState.level === 'archiveContent') { if (currentArcSub2?.title) items.push({ label: currentArcSub2.title }); }
+              return items.length > 1 ? items : [];
+            }
+            return [];
+          }, [activeTab, viewState, currentMain, currentSub, currentTopic, currentArcMain, currentArcSub1, currentArcSub2]);
+
+          const SearchBar = ({ placeholder }) => (
+            <div className="relative mb-6">
+              <input type="text" placeholder={placeholder} className="w-full pl-11 pr-12 py-3.5 min-h-[48px] text-base rounded-2xl border border-teal-100 focus:outline-none focus:ring-2 focus:ring-[#006655] shadow-sm bg-[#F0FAF5]/50" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-600 pointer-events-none" size={20} />
+              {searchQuery && ( <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 active:bg-slate-300 transition-colors" aria-label="ล้างการค้นหา"> <X size={16} className="text-slate-400" /> </button> )}
+            </div>
+          );
+
+          const renderArchive = () => { 
+            if (viewState.level === 'archiveMain') { const filtered = archiveDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่คลังเอกสาร..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={Library} emoji={mainItem.emoji} imageUrl={mainItem.imageUrl} onClick={() => { const main = archiveDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const s1 = main.subCategories[0]; if (s1.topics.length === 1 && s1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', mainId: main.id, subId: s1.id, topicId: s1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', mainId: main.id, subId: s1.id, topicId: null }); } else setViewState({ ...viewState, level: 'archiveSub1', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+            if (viewState.level === 'archiveSub1') { const filtered = (currentArcMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay emoji={currentArcMain?.emoji} imageUrl={currentArcMain?.imageUrl} defaultIcon={Library} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">คลังเอกสาร</div><div className="font-bold text-lg">{String(currentArcMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={Layers} imageUrl={subItem.imageUrl} onClick={() => { const sub1 = currentArcMain.subCategories.find(s => s.id === subItem.id); if (sub1?.topics.length === 1 && sub1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', subId: sub1.id, topicId: sub1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', subId: subItem.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+            if (viewState.level === 'archiveSub2') { const filtered = (currentArcSub1?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcSub1?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay defaultIcon={Layers} imageUrl={currentArcSub1?.imageUrl} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentArcMain?.title || '')}</div><div className="font-bold text-lg">{String(currentArcSub1?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} imageUrl={topic.imageUrl} icon={FileText} onClick={() => { setViewState({ ...viewState, level: 'archiveContent', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
+            if (viewState.level === 'archiveContent') { const docs = currentArcSub2?.documents || []; const filtered = docs.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="animate-in slide-in-from-right-4 pb-8 h-full flex flex-col"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0"> <h2 className="text-xl md:text-2xl font-bold">{String(currentArcSub2?.title || currentArcSub1?.title || currentArcMain?.title || '')}</h2> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50"> <SearchBar placeholder="ค้นหาไฟล์เอกสาร..." /> <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"> <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold"> <FileDown size={18} /><h2>รายการเอกสาร ({filtered.length})</h2> </div> <div className="p-4 flex flex-col gap-3"> {filtered.length === 0 ? <span className="text-slate-400 italic text-center py-4">ไม่พบไฟล์</span> : filtered.map((doc, idx) => { const seen = visitedCtxVal.isVisited(doc.url); return ( <a key={idx} href={doc.url} target="_blank" rel="noopener noreferrer" onClick={() => visitedCtxVal.markVisited(doc.url)} className={`flex items-center justify-between px-4 py-3.5 min-h-[56px] rounded-xl border transition-colors group ${seen ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-slate-50 border-slate-200 hover:bg-teal-50 active:bg-teal-100'}`}> <div className="flex items-center gap-3"> <div className={`p-2 rounded-lg border shrink-0 ${seen ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}> <FileDown size={18} className={seen ? 'text-slate-400' : 'text-rose-500'} /> </div> <span className={`font-medium break-words max-w-[200px] md:max-w-md group-hover:text-[#006655] ${seen ? 'text-slate-400' : 'text-slate-700'}`}>{String(doc.title)}</span> {seen && <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">ดูแล้ว</span>} </div> <FileDown size={20} className={`shrink-0 ml-2 ${seen ? 'text-slate-300' : 'text-rose-400'}`} /> </a> ); }) } </div> </div> </div> </div> ); }
+          };
+
+          const renderManual = () => { 
+            if (manualDatabase.length === 0) return <div className="p-10 text-center text-slate-400">ยังไม่มีข้อมูล — ลอง Reload</div>;
+            if (viewState.level === 'main') { const filtered = manualDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่งานทะเบียน..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={BookOpen} emoji={getEmojiForTitle(mainItem.title)} imageUrl={mainItem.iconUrl} bookmarkItem={{ id: `manual-${mainItem.id}`, tab: 'manual', title: mainItem.title, path: [mainItem.title], ids: { mainId: mainItem.id, level: 'sub' } }} onClick={() => { const main = manualDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const sub = main.subCategories[0]; if (sub.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', mainId: main.id, subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', mainId: main.id, subId: sub.id, topicId: null }); } else setViewState({ ...viewState, level: 'sub', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+            if (viewState.level === 'sub') { const filtered = (currentMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentMain?.iconUrl} emoji={getEmojiForTitle(currentMain?.title)} defaultIcon={BookOpen} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">หมวดหมู่หลัก</div><div className="font-bold text-lg">{String(currentMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={FileText} emoji={getEmojiForTitle(subItem.title)} imageUrl={subItem.iconUrl} onClick={() => { const sub = currentMain.subCategories.find(s => s.id === subItem.id); if (sub?.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', subId: sub.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+            if (viewState.level === 'topics') { const filtered = (currentSub?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentSub?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentSub?.iconUrl} emoji={getEmojiForTitle(currentSub?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentSub?.title || 'รายการทั้งหมด')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} icon={FileText} emoji={getEmojiForTitle(topic.title)} imageUrl={topic.iconUrl} bookmarkItem={{ id: `manual-topic-${topic.id}`, tab: 'manual', title: topic.title, path: [currentMain?.title, currentSub?.title, topic.title], ids: { mainId: viewState.mainId, subId: viewState.subId, topicId: topic.id, level: 'detail' } }} onClick={() => { setViewState({ ...viewState, level: 'detail', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
+            if (viewState.level === 'detail') { const sectionConfigs = [ { key: 'meaning', title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, { key: 'summary', title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, { key: 'laws', title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, { key: 'courtRulings', title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, { key: 'councilRulings', title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, { key: 'deptRulings', title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, { key: 'qna', title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion,emoji:"❓" }, { key: 'handbooks', title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } ]; return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4 pb-8"> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentSub?.title || currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentTopic?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {sectionConfigs.map(cfg => { const hasContent = currentTopic?.content[cfg.key]?.length > 0; if (!hasContent) return null; return <ListItem key={cfg.key} title={cfg.title} icon={cfg.icon} emoji={cfg.emoji} onClick={() => setViewState({ ...viewState, level: 'content', sectionKey: cfg.key })} />; })} </div> </div> ); }
+            if (viewState.level === 'content') { const sectionKey = viewState.sectionKey; const sectionConfig = { meaning: { title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, summary: { title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, laws: { title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, courtRulings: { title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, councilRulings: { title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, deptRulings: { title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, qna: { title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion, emoji: "❓" }, handbooks: { title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } }; const activeConfig = sectionConfig[sectionKey]; const activeContent = currentTopic?.content[sectionKey]; return ( <div className="animate-in slide-in-from-right-4 pb-8 h-full flex flex-col print:block"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0 print:bg-white print:text-[#006655] print:shadow-none print:border-b print:border-teal-200"> <div className="flex items-start justify-between gap-3"> <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-10 h-10" iconSize={20} textClass="text-xl" /> {String(currentTopic?.title || '')} </h2> <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 print:hidden"> <Printer size={16} /><span className="hidden sm:inline">พิมพ์</span> </button> </div> <div className="mt-2 text-teal-200 print:text-teal-700 text-sm flex gap-2 items-center"><ChevronRight size={14} /><span>{String(activeConfig?.title || '')}</span></div> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50 print:bg-white print:p-0 print:pt-4"> <ContentSection title={activeConfig?.title || ''} icon={activeConfig?.icon || FileText} emoji={activeConfig?.emoji} entries={activeContent} /> </div> </div> ); }
+          };
+
+          return (
+            <ErrorBoundary>
+            <BookmarkCtx.Provider value={bookmarkCtxVal}>
+            <VisitedCtx.Provider value={visitedCtxVal}>
+            <div lang="th" className="min-h-screen bg-slate-100 font-sans md:p-4 lg:p-8 flex justify-center items-start">
+              <div className="w-full max-w-2xl md:max-w-5xl lg:max-w-7xl bg-white min-h-screen md:min-h-[85vh] md:h-[85vh] md:rounded-3xl shadow-xl relative flex flex-col md:flex-row overflow-hidden border border-slate-200">
+
+                <BottomNav activeTab={activeTab} onSelect={handleNavSelect} bookmarkCount={bookmarks.length} />
+
+                <div className="flex-1 flex flex-col order-1 md:order-2 h-[100dvh] md:h-full overflow-hidden relative">
+                  <Header
+                    title={getHeaderTitle()}
+                    onBack={handleGoBack}
+                    showBack={showBack}
+                    onOpenAdmin={() => setAdminOpen(true)}
+                    breadcrumbItems={breadcrumbItems}
+                    globalSearch={
+                      !isLoading && (
+                        <GlobalSearch
+                          manualDatabase={manualDatabase}
+                          archiveDatabase={archiveDatabase}
+                          decisionRules={decisionRules}
+                          chatbotData={chatbotData}
+                          onNavigate={handleGlobalNavigate}
+                          onSearch={trackSearch}
+                        />
+                      )
+                    }
+                  />
+
+                  <main className="flex-1 overflow-y-auto bg-white relative flex flex-col">
+                    {newDataNotice && (
+                      <div className="bg-teal-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm animate-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2">
+                          <Bell size={15} className="shrink-0" />
+                          <span className="font-medium">มีข้อมูลใหม่:&nbsp; {Object.entries(newDataNotice).map(([k, v]) => { const labels = { manual: 'คู่มือ', decision: 'Decision', archive: 'คลัง', chatbot: 'Chatbot' }; return `${labels[k] || k} +${v}`; }).join(', ')} </span>
+                        </div>
+                        <button onClick={() => setNewDataNotice(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 shrink-0"><X size={14} /></button>
+                      </div>
+                    )}
+
+                    {loadError && (
+                      <div className="absolute top-0 left-0 right-0 bg-rose-50 text-rose-600 p-3 text-center text-sm z-20 border-b border-rose-200 flex items-center justify-center gap-2">
+                        <AlertCircle size={16} /><span>โหลดข้อมูลบางส่วนล้มเหลว</span>
+                        <button onClick={() => loadDataFromSheets(sheetUrls, true)} className="underline font-bold ml-2">ลองใหม่</button>
+                        <button onClick={() => { cacheClear(); loadDataFromSheets(DEFAULT_URLS, true); }} className="underline font-bold ml-4 text-rose-800">รีเซ็ตและล้าง Cache</button>
+                      </div>
+                    )}
+                    
+                    {isLoading ? (
+                      <LoadingScreen sources={loadSources} />
+                    ) : (
+                      <>
+                        {activeTab === 'manual'       && renderManual()}
+                        {activeTab === 'archive'      && renderArchive()}
+                        {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
+                        {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
+                        {activeTab === 'legal_search' && <LegalSearchView />}
+                        {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
+                        {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
+                        {activeTab === 'favorites'    && (
+                          <FavoritesView
+                            bookmarks={bookmarks}
+                            onNavigate={item => { handleGlobalNavigate(item); }}
+                            onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
+                          />
+                        )}
+                        
+                        {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court') && (
+                          <div className="h-[88px] md:h-0 w-full shrink-0 pointer-events-none" />
+                        )}
+                      </>
+                    )}
+                  </main>
+                </div>
+              </div>
+
+              {adminOpen && (
+                <AdminModal
+                  rawData={{ manual: rawManualRows, decision: rawDecisionRows, archive: rawArchiveRows, chatbot: rawChatbotRows }}
+                  onReloadData={() => { loadDataFromSheets(sheetUrls, true); }}
+                  sheetUrls={sheetUrls}
+                  onUpdateUrls={handleUpdateUrls}
+                  onClose={() => setAdminOpen(false)}
+                />
+              )}
+            </div>
+            </VisitedCtx.Provider>
+            </BookmarkCtx.Provider>
+            </ErrorBoundary>
+          );
+        }
+
+        const rootElement = document.getElementById('root');
+        const root = createRoot(rootElement);
+        root.render(<App />);
+    </script>
+
+    <!-- PWA Install Prompt Listener -->
+    <script>
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // ดัก Event ไว้ก่อน เพื่อไม่ให้มันเด้งขึ้นมาเองทันที
+        e.preventDefault();
+        // ส่งต่อ Event ให้แอป React ด้านในไปจัดการต่อ
+        window.pwaDeferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
+      });
+
+      // Register Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
+</body>
+</html>
