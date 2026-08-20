@@ -22,8 +22,8 @@
         body { 
             font-family: 'Sarabun', sans-serif; 
             -webkit-tap-highlight-color: transparent;
-            /* ป้องกันการเด้ง (Rubber banding) บนมือถือ */
-            overscroll-behavior-y: none;
+            /* ย้ายสีพื้นหลังมาไว้ที่ body เพื่อรองรับการ Scroll แบบธรรมชาติ */
+            background-color: #f1f5f9; 
         }
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
@@ -49,10 +49,11 @@
     <!-- Babel สำหรับแปลง JSX ใน Browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased overflow-hidden">
+<!-- ถอด overflow-hidden ออกจาก body ปล่อยให้หน้าจอเลื่อนได้อิสระ -->
+<body class="text-slate-800 antialiased">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <script type="text/babel" data-presets="react" data-type="module">
         import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
@@ -210,7 +211,7 @@
             <>
               <button onClick={() => setOpen(true)} className="flex items-center gap-2 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white px-3 py-2 rounded-xl transition-colors border border-white/20 min-h-[40px]" aria-label="ค้นหา (Ctrl+K)"> <Search size={16} /> <span className="hidden sm:inline text-white/80 text-xs">ค้นหา...</span> <kbd className="hidden md:inline text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono">⌘K</kbd> </button>
               {open && (
-                <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[8vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+                <div className="fixed inset-0 z-[110] flex items-start justify-center pt-[8vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
                   <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '80dvh' }} onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100"> <Search size={20} className="text-[#006655] shrink-0" /> <input ref={inputRef} type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาในคู่มือ คลังเอกสาร Decision และ Chatbot..." className="flex-1 text-base outline-none text-slate-800 placeholder:text-slate-400 bg-transparent" /> {query && ( <button onClick={() => setQuery('')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 shrink-0"> <X size={14} className="text-slate-400" /> </button> )} <button onClick={() => setOpen(false)} className="text-[11px] text-slate-400 border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50 shrink-0">ESC</button> </div>
                     {results.length > 0 && ( <div className="flex gap-1.5 px-4 py-2.5 border-b border-slate-100 overflow-x-auto scrollbar-none"> {['all', 'manual', 'archive', 'decision', 'chatbot'].map(tab => { const count = counts[tab]; if (tab !== 'all' && !count) return null; const meta = tab === 'all' ? { label: 'ทั้งหมด', badge: 'bg-slate-100 text-slate-600' } : MODULE_META[tab]; return ( <button key={tab} onClick={() => setActiveFilter(tab)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${activeFilter === tab ? `${meta.badge} ring-1 ring-current/30` : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}> {tab !== 'all' && React.createElement(MODULE_META[tab].Icon, { size: 12 })} <span>{meta.label}</span> {count > 0 && <span className="bg-white/60 px-1 rounded-full">{count}</span>} </button> ); })} </div> )}
@@ -233,24 +234,24 @@
         // ==========================================
         const IconDisplay = ({ imageUrl, emoji, defaultIcon: DefaultIcon, sizeClass = "w-10 h-10 md:w-12 md:h-12", iconSize = 22, textClass = "text-2xl md:text-3xl" }) => { if (imageUrl) return <img src={imageUrl} alt="icon" className={`${sizeClass} rounded-full object-cover shadow-sm shrink-0 bg-white border border-teal-100`} />; if (emoji) return <div className={`${textClass} ${sizeClass} flex items-center justify-center bg-white rounded-full shadow-sm shrink-0`}>{emoji}</div>; return <div className="bg-white p-2.5 rounded-full text-teal-600 shadow-sm shrink-0"><DefaultIcon size={iconSize} /></div>; };
         const Breadcrumb = ({ items }) => { if (!items || items.length <= 1) return null; return ( <div className="bg-[#005544] border-t border-white/10 px-3 py-1.5 flex items-center gap-1 overflow-x-auto scrollbar-none"> {items.map((item, idx) => { const isLast = idx === items.length - 1; return ( <React.Fragment key={idx}> {idx > 0 && <ChevronRight size={12} className="text-teal-300/60 shrink-0" />} {isLast ? <span className="text-[11px] text-white font-semibold whitespace-nowrap truncate max-w-[140px]">{item.label}</span> : <button onClick={item.onClick} className="text-[11px] text-teal-200 hover:text-white transition-colors whitespace-nowrap shrink-0 underline-offset-2 hover:underline active:opacity-70">{item.label}</button> } </React.Fragment> ); })} </div> ); };
-        const Header = ({ title, onBack, showBack, onOpenAdmin, breadcrumbItems, globalSearch }) => ( <header className="sticky top-0 z-10 bg-[#006655] text-white shadow-md shrink-0"> <div className="flex items-center px-2 py-2 h-16 gap-1"> {showBack ? ( <button onClick={onBack} className="flex items-center justify-center w-12 h-12 rounded-2xl hover:bg-white/20 active:bg-white/30 transition-colors shrink-0" aria-label="ย้อนกลับ"> <ArrowLeft size={26} /> </button> ) : ( <div className="w-12 shrink-0" /> )} <h1 className="flex-1 text-center text-base font-bold truncate px-1">{String(title || '')}</h1> <div className="flex items-center gap-1 shrink-0"> {globalSearch} <button onClick={onOpenAdmin} className="flex items-center justify-center w-10 h-10 rounded-2xl hover:bg-white/20 active:bg-white/30 transition-colors" aria-label="ตั้งค่า / Admin" title="ตั้งค่า / Admin"> <Settings size={22} /> </button> </div> </div> <Breadcrumb items={breadcrumbItems} /> </header> );
+        const Header = ({ title, onBack, showBack, onOpenAdmin, breadcrumbItems, globalSearch }) => ( <header className="sticky top-0 z-[90] bg-[#006655] text-white shadow-md shrink-0 w-full"> <div className="flex items-center px-2 py-2 h-16 gap-1"> {showBack ? ( <button onClick={onBack} className="flex items-center justify-center w-12 h-12 rounded-2xl hover:bg-white/20 active:bg-white/30 transition-colors shrink-0" aria-label="ย้อนกลับ"> <ArrowLeft size={26} /> </button> ) : ( <div className="w-12 shrink-0" /> )} <h1 className="flex-1 text-center text-base font-bold truncate px-1">{String(title || '')}</h1> <div className="flex items-center gap-1 shrink-0"> {globalSearch} <button onClick={onOpenAdmin} className="flex items-center justify-center w-10 h-10 rounded-2xl hover:bg-white/20 active:bg-white/30 transition-colors" aria-label="ตั้งค่า / Admin" title="ตั้งค่า / Admin"> <Settings size={22} /> </button> </div> </div> <Breadcrumb items={breadcrumbItems} /> </header> );
 
         const BookmarkCtx = React.createContext({ toggle: () => {}, isBookmarked: () => false });
         const ListItem = ({ title, icon: Icon, emoji, imageUrl, onClick, bookmarkItem }) => { const { toggle, isBookmarked } = React.useContext(BookmarkCtx); const starred = bookmarkItem ? isBookmarked(bookmarkItem.id) : false; return ( <div className="relative group"> <button onClick={onClick} className="w-full min-h-[56px] flex items-center justify-between bg-[#F0FAF5] px-4 py-3 md:py-4 rounded-2xl border border-teal-100/50 hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] text-left pr-12"> <div className="flex items-center gap-4"> <IconDisplay imageUrl={imageUrl} emoji={emoji} defaultIcon={Icon} /> <span className="font-bold text-[#006655] text-[15px] md:text-base leading-tight break-words">{String(title || '(ไม่มีชื่อ)')}</span> </div> <ChevronRight className="text-slate-400 shrink-0 ml-2" size={22} /> </button> {bookmarkItem && ( <button onClick={e => { e.stopPropagation(); toggle(bookmarkItem); }} className={`absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${starred ? 'text-amber-400 bg-amber-50' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-50'}`} aria-label={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} title={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} > <Star size={16} fill={starred ? 'currentColor' : 'none'} /> </button> )} </div> ); };
         const VisitedCtx = React.createContext({ markVisited: () => {}, isVisited: () => false });
         
         // ==========================================
-        // 3. ContentSection (อัปเดตปรับปรุงแก้ระยะช่องไฟภาษาไทย)
+        // 3. ContentSection 
         // ==========================================
         const ContentSection = ({ title, icon: Icon, emoji, entries }) => { 
           const { markVisited, isVisited } = React.useContext(VisitedCtx); 
           return ( 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col"> 
-              <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold shrink-0"> 
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col"> 
+              <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold"> 
                 {emoji ? <span className="text-xl">{emoji}</span> : <Icon size={18} />} 
                 <h2>{String(title || '')}</h2> 
               </div> 
-              <div className="p-4 flex-1 flex flex-col gap-6 overflow-y-auto"> 
+              <div className="p-4 flex flex-col gap-6"> 
                 {(!entries || entries.length === 0) ? ( 
                   <span className="text-slate-400 italic">ไม่มีข้อมูล</span> 
                 ) : entries.map((entry, idx) => ( 
@@ -311,7 +312,7 @@
           const tableHeaders = currentTableData?.preview?.[0] ? Object.keys(currentTableData.preview[0]) : [];
 
           return (
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="fixed inset-0 z-[110] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
               <div className="w-full max-w-2xl bg-white rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
                   <div className="flex items-center gap-3">
@@ -391,7 +392,7 @@
           const handleSend = (e) => { e.preventDefault(); if (!input.trim()) return; const userMsg = input.trim(); setMessages(prev => [...prev, { sender: 'user', text: userMsg }]); setInput(''); setTimeout(() => { let bestMatch = null, maxScore = 0; const lowerInput = userMsg.toLowerCase(); chatbotData.filter(d => d.category === selectedCategory).forEach(item => { let score = 0; item.keywords.forEach(kw => { if (lowerInput.includes(kw)) score++; }); if (score > maxScore) { maxScore = score; bestMatch = item.answer; } }); if (!bestMatch && onMiss) onMiss(userMsg, selectedCategory); setMessages(prev => [...prev, { sender: 'bot', text: String(bestMatch || 'ไม่พบข้อมูลที่ตรงกับคำถามของคุณในหมวดหมู่นี้ค่ะ') }]); }, 500); };
 
           return (
-            <div className="flex-1 flex flex-col bg-slate-50/50">
+            <div className="absolute inset-0 flex flex-col bg-slate-50/50 animate-in fade-in z-0">
               <div className="bg-[#006655] text-white p-4 shadow-md shrink-0"> <div className="flex items-center gap-3 mb-3"> <div className="bg-white/20 p-2 rounded-full"><Bot size={24} /></div> <h2 className="font-bold text-lg">Chatbot ถาม-ตอบ</h2> </div> {categories.length > 0 && ( <select className="w-full bg-[#005544] text-white p-2 rounded-xl text-sm border border-teal-400/30 outline-none" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}> {categories.map(cat => <option key={cat} value={cat}>{String(cat)}</option>)} </select> )} </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4"> {messages.map((msg, idx) => ( <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-[#006655] text-white' : 'bg-white text-slate-800 shadow-sm border border-slate-200'}`}> <div className="whitespace-pre-wrap">{String(msg.text)}</div> </div> </div> ))} <div ref={messagesEndRef} /> </div>
               <form onSubmit={handleSend} className="p-3 bg-white border-t flex gap-2 items-center shrink-0"> <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="พิมพ์ข้อความ..." className="flex-1 bg-slate-100 border rounded-full px-4 py-3 min-h-[44px] outline-none focus:ring-2 focus:ring-[#006655] text-base" /> <button type="submit" className="bg-[#006655] text-white w-11 h-11 flex items-center justify-center rounded-full hover:bg-teal-700 active:scale-95 transition-all shrink-0"><Send size={20} /></button> </form>
@@ -426,393 +427,343 @@
                   {searchMode === 'ai_search' && ( <div className="space-y-4 bg-blue-50/50 p-5 rounded-2xl border border-blue-100 animate-in slide-in-from-top-2"> <div> <label className="block text-sm font-bold text-blue-900 mb-2">คำค้นหา / คำถาม</label> <textarea value={aiQuestion} onChange={e => setAiQuestion(e.target.value)} rows="2" className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-base" placeholder="เช่น ตัวแทนโบรคเกอร์ พรก กู้ยืมเงิน" /> </div> <div> <label className="block text-sm font-bold text-blue-900 mb-2">Top K (จำนวนผลลัพธ์)</label> <input type="number" value={aiTopK} onChange={e => setAiTopK(e.target.value)} className="w-32 px-4 py-2 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-base" /> </div> </div> )}
                   {searchMode === 'search_by_law' && ( <div className="space-y-4 bg-amber-50/50 p-5 rounded-2xl border border-amber-100 animate-in slide-in-from-top-2"> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <div> <label className="block text-sm font-bold text-amber-900 mb-2">ตัวย่อกฎหมาย (law_code)</label> <input type="text" value={lawCode} onChange={e => setLawCode(e.target.value)} className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-base" /> </div> <div> <label className="block text-sm font-bold text-amber-900 mb-2">เลขมาตรา (คั่นด้วยลูกน้ำ)</label> <input type="text" value={lawSections} onChange={e => setLawSections(e.target.value)} className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-base" placeholder="เช่น 43, 44/1" /> </div> </div> <div> <label className="block text-sm font-bold text-amber-900 mb-2">Top K (จำนวนผลลัพธ์)</label> <input type="number" value={lawTopK} onChange={e => setLawTopK(e.target.value)} className="w-32 px-4 py-2 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-base" /> </div> </div> )}
                   {searchMode === 'get_deka' && ( <div className="space-y-4 bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 animate-in slide-in-from-top-2"> <div> <label className="block text-sm font-bold text-emerald-900 mb-2">เลขคดีฎีกา</label> <input type="text" value={dekaNo} onChange={e => setDekaNo(e.target.value)} className="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base" /> <p className="text-xs text-emerald-700 mt-2">*ระบบจะทำการขอข้อมูลแบบ <b>include_long_text</b> ให้โดยอัตโนมัติ เพื่อให้ได้เนื้อหาฉบับเต็ม</p> </div> </div> )}
-                  <button onClick={executeRequest} disabled={isLoading} className="w-full bg-slate-800 text-white font-bold py-4 px-4 rounded-2xl hover:bg-slate-900 transition-all focus:outline-none focus:ring-4 focus:ring-slate-200 flex justify-center items-center gap-2 shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed" > {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />} {isLoading ? 'กำลังค้นหา...' : 'ค้นหาข้อมูล'} </button>
+          <button onClick={executeRequest} disabled={isLoading} className="w-full bg-slate-800 text-white font-bold py-4 px-4 rounded-2xl hover:bg-slate-900 transition-all focus:outline-none focus:ring-4 focus:ring-slate-200 flex justify-center items-center gap-2 shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed" > {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />} {isLoading ? 'กำลังค้นหา...' : 'ค้นหาข้อมูล'} </button>
+        </div>
+        {error && ( <div className="mt-6 p-4 bg-rose-50 text-rose-700 rounded-2xl border border-rose-200 text-sm flex items-start gap-2"> <AlertCircle size={18} className="shrink-0 mt-0.5" /> <div><strong className="font-bold">เกิดข้อผิดพลาด:</strong> {error}</div> </div> )}
+        {results && ( <div className="mt-8 animate-in slide-in-from-bottom-4"> <div className="flex justify-between items-center mb-4"> <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"> <CheckCircle2 className="text-emerald-500" size={24} /> ผลการค้นหา </h3> <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-2 py-1 rounded-lg font-mono"> {endpointLabel} </span> </div> <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl overflow-y-auto max-h-[600px] shadow-sm"> {results.length === 0 ? ( <p className="text-slate-500 text-center py-8">ไม่พบข้อมูลที่ตรงกับคำค้นหา</p> ) : ( results.map((item, index) => { const title = item.title || `คำพิพากษาศาลฎีกาที่ ${item.deka_no || '-'}`; const text = item.long_text || item.short_text || 'ไม่มีรายละเอียดข้อความ'; return ( <div key={index} className="mb-6 pb-6 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0"> <h4 className="text-lg font-bold text-[#006655] mb-3 flex items-center flex-wrap gap-2"> {results.length > 1 && <span className="bg-emerald-100 text-emerald-800 w-6 h-6 flex items-center justify-center rounded-full text-xs">{index + 1}</span>} {title} {item.score && <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Score: {item.score.toFixed(2)}</span>} </h4> <p className="text-slate-700 text-sm md:text-base leading-relaxed text-justify whitespace-pre-wrap">{text}</p> </div> ); }) )} </div> <details className="mt-4 text-sm text-slate-500 cursor-pointer group"> <summary className="font-medium group-hover:text-slate-800 transition-colors">ดูข้อมูล JSON ดิบ (สำหรับตรวจสอบ)</summary> <pre className="mt-3 bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-[10px] font-mono shadow-inner"> {JSON.stringify(rawJson, null, 2)} </pre> </details> </div> )}
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 🌟 Web Embed View
+// ==========================================
+const WebEmbedView = ({ url, title, icon: Icon = Globe, theme = 'purple' }) => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  const THEMES = {
+    purple: { spinner: 'text-purple-500' },
+    rose: { spinner: 'text-rose-500' }
+  };
+  
+  const t = THEMES[theme] || THEMES.purple;
+
+  return (
+    <div className="absolute inset-0 flex flex-col z-0 bg-slate-50 animate-in fade-in">
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-10 backdrop-blur-sm">
+          <Loader2 className={`animate-spin ${t.spinner} mb-3`} size={36} />
+          <p className="text-sm text-slate-500 font-medium bg-white px-4 py-1.5 rounded-full shadow-sm">
+            กำลังโหลดหน้าเว็บ...
+          </p>
+        </div>
+      )}
+      <iframe
+        src={url}
+        className="w-full h-full border-none flex-1 bg-white"
+        title={title}
+        onLoad={() => setIsLoading(false)}
+        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+      />
+    </div>
+  );
+};
+
+
+// ==========================================
+// Bottom / Side Navigation
+// ==========================================
+const NAV_ITEMS = [
+  { id: 'manual',       label: 'คู่มือ',   Icon: BookOpen,      color: 'teal'   },
+  { id: 'archive',      label: 'คลัง',     Icon: Library,       color: 'blue'   },
+  { id: 'decision',     label: 'Decision', Icon: Cpu,           color: 'indigo' },
+  { id: 'legal_search', label: 'ค้นฎีกา',   Icon: Scale,         color: 'emerald'}, 
+  { id: 'ocs_comment',  label: 'กฤษฎีกา',   Icon: Globe,         color: 'purple' },
+  { id: 'supreme_court',label: 'ศาลฎีกา',   Icon: Gavel,         color: 'rose'   }, 
+  { id: 'chatbot',      label: 'ถาม-ตอบ',  Icon: MessageCircle, color: 'cyan'   },
+  { id: 'favorites',    label: 'บันทึก',   Icon: Star,          color: 'amber'  },
+];
+
+const NAV_COLOR_MAP = {
+  teal:    { active: 'text-teal-600',    activeBg: 'bg-teal-50',    dot: 'bg-teal-500'    },
+  blue:    { active: 'text-blue-600',    activeBg: 'bg-blue-50',    dot: 'bg-blue-500'    },
+  indigo:  { active: 'text-indigo-600',  activeBg: 'bg-indigo-50',  dot: 'bg-indigo-500'  },
+  emerald: { active: 'text-emerald-600', activeBg: 'bg-emerald-50', dot: 'bg-emerald-500' }, 
+  purple:  { active: 'text-purple-600',  activeBg: 'bg-purple-50',  dot: 'bg-purple-500'  },
+  rose:    { active: 'text-rose-600',    activeBg: 'bg-rose-50',    dot: 'bg-rose-500'    }, 
+  cyan:    { active: 'text-cyan-600',    activeBg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
+  amber:   { active: 'text-amber-500',   activeBg: 'bg-amber-50',   dot: 'bg-amber-400'   },
+};
+
+const FavoritesView = ({ bookmarks, onNavigate, onRemove }) => { 
+  const META = { 
+    manual: { label: 'คู่มือ', Icon: BookOpen, badge: 'bg-teal-100 text-teal-700' }, 
+    archive: { label: 'คลังเอกสาร', Icon: Library, badge: 'bg-blue-100 text-blue-700' }, 
+    decision: { label: 'Decision', Icon: Cpu, badge: 'bg-indigo-100 text-indigo-700'}, 
+    chatbot: { label: 'ถาม-ตอบ', Icon: MessageCircle, badge: 'bg-cyan-100 text-cyan-700' }, 
+    legal_search: { label: 'ค้นฎีกา', Icon: Scale, badge: 'bg-emerald-100 text-emerald-700' }, 
+    ocs_comment: { label: 'กฤษฎีกา', Icon: Globe, badge: 'bg-purple-100 text-purple-700' },
+    supreme_court: { label: 'ศาลฎีกา', Icon: Gavel, badge: 'bg-rose-100 text-rose-700' }
+  };
+  if (bookmarks.length === 0) { return ( <div className="flex flex-col items-center justify-center h-full p-10 text-center text-slate-400 gap-4"> <Star size={48} className="text-slate-200" /> <p className="font-semibold text-lg">ยังไม่มีรายการบันทึก</p> <p className="text-sm">กดปุ่ม ⭐ ที่หัวข้อใดก็ได้เพื่อบันทึกไว้ที่นี่</p> </div> ); }
+  return ( <div className="p-4 md:p-6 animate-in fade-in"> <div className="flex items-center justify-between mb-5"> <h2 className="font-bold text-[#006655] text-lg flex items-center gap-2"> <Star size={20} className="text-amber-400" fill="currentColor" /> รายการที่บันทึกไว้ ({bookmarks.length}) </h2> <button onClick={() => { if (window.confirm('ล้างรายการทั้งหมด?')) { bookmarkSave([]); onRemove([]); } }} className="text-xs text-slate-400 hover:text-rose-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-50"> ล้างทั้งหมด </button> </div> <div className="flex flex-col gap-3"> {bookmarks.map(item => { const meta = META[item.tab] || META.manual; const Icon = meta.Icon; return ( <div key={item.id} className="flex items-center gap-3 bg-[#F0FAF5] border border-teal-100/50 rounded-2xl px-4 py-3 min-h-[64px] group hover:shadow-md transition-all"> <button onClick={() => onNavigate(item)} className="flex-1 flex items-center gap-3 text-left min-w-0"> <div className="bg-white p-2 rounded-xl border border-teal-100 shrink-0"><Icon size={18} className="text-[#006655]" /></div> <div className="min-w-0"> <p className="font-bold text-[#006655] text-sm truncate">{item.title}</p> {item.path?.length > 0 && ( <p className="text-[11px] text-slate-400 truncate">{item.path.filter(Boolean).join(' › ')}</p> )} </div> </button> <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${meta.badge}`}>{meta.label}</span> <button onClick={() => onRemove(bookmarks.filter(b => b.id !== item.id))} className="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:text-rose-400 hover:bg-rose-50 transition-all shrink-0 opacity-0 group-hover:opacity-100" aria-label="ลบออก"> <X size={15} /> </button> </div> ); })} </div> </div> );
+};
+
+const BottomNav = ({ activeTab, onSelect, bookmarkCount }) => (
+  <nav className="fixed md:sticky md:top-0 bottom-0 left-0 right-0 w-full md:w-24 lg:w-28 bg-white/98 md:bg-slate-50/80 border-t md:border-t-0 md:border-r border-slate-200 flex md:flex-col justify-around md:justify-start items-stretch h-[72px] md:h-[100dvh] md:max-h-[100dvh] md:pt-6 md:pb-8 z-[95] shadow-[0_-4px_12px_rgba(0,0,0,0.05)] md:shadow-none backdrop-blur-md">
+    {NAV_ITEMS.map(({ id, label, Icon, color }) => {
+      const isActive = activeTab === id; const c = NAV_COLOR_MAP[color]; const showBadge = id === 'favorites' && bookmarkCount > 0;
+      return (
+        <button key={id} onClick={() => onSelect(id)} className={`relative flex flex-col items-center justify-center gap-1 flex-1 md:flex-none md:w-full md:py-4 md:px-2 min-h-[56px] min-w-[64px] md:min-h-0 rounded-none md:rounded-xl mx-0 md:mx-2 md:mb-1 transition-all duration-150 ${isActive ? `${c.active} md:${c.activeBg}` : 'text-slate-400 hover:text-slate-600'}`} aria-label={label}>
+          {isActive && ( <><span className={`absolute top-0 left-1/4 right-1/4 h-0.5 ${c.dot} rounded-full md:hidden`} /><span className={`hidden md:block absolute left-0 top-3 bottom-3 w-1 ${c.dot} rounded-full`} /></> )}
+          <div className="relative"> <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} fill={id === 'favorites' && isActive ? 'currentColor' : 'none'} /> {showBadge && ( <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-0.5 bg-amber-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"> {bookmarkCount > 99 ? '99+' : bookmarkCount} </span> )} </div>
+          <span className={`text-[10px] md:text-xs font-semibold tracking-tight leading-none ${isActive ? 'font-bold' : ''}`}>{label}</span>
+        </button>
+      );
+    })}
+  </nav>
+);
+
+// ==========================================
+// 5. Main App
+// ==========================================
+function App() {
+  const [activeTab, setActiveTab]       = useState('manual');
+  const [adminOpen, setAdminOpen]       = useState(false);
+  const [sheetUrls, setSheetUrls]       = useState({ ...DEFAULT_URLS });
+  const [rawManualRows, setRawManualRows]     = useState([]);
+  const [rawDecisionRows, setRawDecisionRows] = useState([]);
+  const [rawChatbotRows, setRawChatbotRows]   = useState([]);
+  const [rawArchiveRows, setRawArchiveRows]   = useState([]);
+  const [loadSources, setLoadSources]   = useState([]);
+  const [isLoading, setIsLoading]       = useState(true);
+  const [loadError, setLoadError]       = useState(false);
+  const [viewState, setViewState]       = useState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
+  const [searchQuery, setSearchQuery]   = useState('');
+  const [decisionResetKey, setDecisionResetKey] = useState(0);
+  const [newDataNotice, setNewDataNotice]       = useState(null);
+
+  const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
+  const { markVisited, isVisited } = useVisited();
+  const bookmarkCtxVal = useMemo(() => ({ toggle: toggleBookmark, isBookmarked }), [toggleBookmark, isBookmarked]);
+  const visitedCtxVal  = useMemo(() => ({ markVisited, isVisited }), [markVisited, isVisited]);
+  const { trackPageview, trackSearch, trackChatbotMiss } = useAnalytics();
+  const [, forceBookmarkSync] = useState(0);
+  useEffect(() => { const handler = () => forceBookmarkSync(n => n + 1); window.addEventListener('app_bookmark_update', handler); return () => window.removeEventListener('app_bookmark_update', handler); }, []);
+
+  const manualDatabase  = useMemo(() => transformManualData(rawManualRows),   [rawManualRows]);
+  const decisionRules   = useMemo(() => transformDecisionData(rawDecisionRows), [rawDecisionRows]);
+  const archiveDatabase = useMemo(() => transformArchiveData(rawArchiveRows),  [rawArchiveRows]);
+  const chatbotData     = rawChatbotRows;
+
+  const currentMain    = useMemo(() => manualDatabase.find(m => m.id === viewState.mainId),            [manualDatabase, viewState.mainId]);
+  const currentSub     = useMemo(() => currentMain?.subCategories.find(s => s.id === viewState.subId), [currentMain, viewState.subId]);
+  const currentTopic   = useMemo(() => currentSub?.topics.find(t => t.id === viewState.topicId),       [currentSub, viewState.topicId]);
+  const currentArcMain = useMemo(() => archiveDatabase.find(m => m.id === viewState.mainId),           [archiveDatabase, viewState.mainId]);
+  const currentArcSub1 = useMemo(() => currentArcMain?.subCategories?.find(s => s.id === viewState.subId), [currentArcMain, viewState.subId]);
+  const currentArcSub2 = useMemo(() => currentArcSub1?.topics?.find(t => t.id === viewState.topicId),      [currentArcSub1, viewState.topicId]);
+
+  const abortRef = useRef(null);
+
+  const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false) => {
+    if (abortRef.current) abortRef.current.abort(); const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
+    setIsLoading(true); setLoadError(false);
+    const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
+    setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
+    const fetchCSV = async (cacheKey, url) => { if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return cached; } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const rows = parseCSV(await r.text()); cacheSet(cacheKey, rows); return rows; };
+
+    try {
+      updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
+      if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('decision', 'error'); }
+      if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('archive', 'error'); }
+      if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
+    } catch (err) { if (err.name !== 'AbortError') { console.error(err); setLoadError(true); } } finally { if (!signal.aborted) setIsLoading(false); }
+  }, [sheetUrls]);
+
+  useEffect(() => { loadDataFromSheets(); return () => abortRef.current?.abort(); }, []);
+
+  const prevCountsRef = useRef(null);
+  useEffect(() => {
+    if (isLoading) return; const current = { manual: rawManualRows.length, decision: rawDecisionRows.length, archive: rawArchiveRows.length, chatbot: rawChatbotRows.length, };
+    if (prevCountsRef.current) { const diff = {}; Object.keys(current).forEach(k => { const delta = current[k] - prevCountsRef.current[k]; if (delta > 0) diff[k] = delta; }); if (Object.keys(diff).length > 0) setNewDataNotice(diff); }
+    prevCountsRef.current = current;
+  }, [isLoading]);
+
+  const handleUpdateUrls = (newUrls) => { cacheClear(); setSheetUrls(newUrls); };
+
+  const handleGlobalNavigate = useCallback((result) => {
+    setSearchQuery(''); setActiveTab(result.tab); trackPageview(result.tab, result.title, result.path);
+    if (result.tab === 'manual') { const { mainId, subId, topicId, sectionKey, level } = result.ids; setViewState({ level: level || 'detail', mainId: mainId || null, subId: subId || null, topicId: topicId || null, sectionKey: sectionKey || null }); } 
+    else if (result.tab === 'archive') { const { mainId, subId, topicId, level } = result.ids; setViewState({ level: level || 'archiveContent', mainId: mainId || null, subId: subId || null, topicId: topicId || null, sectionKey: null }); } 
+    else { setViewState({ level: result.tab === 'archive' ? 'archiveMain' : 'main', mainId: null, subId: null, topicId: null, sectionKey: null }); if (result.tab === 'decision') setDecisionResetKey(prev => prev + 1); }
+  }, []);
+
+  const getHeaderTitle = () => {
+    if (activeTab === 'decision')      return 'ระบบช่วยตัดสินใจ';
+    if (activeTab === 'chatbot')       return 'Chatbot ถาม-ตอบ';
+    if (activeTab === 'legal_search')  return 'ค้นคำพิพากษาศาลฎีกา'; 
+    if (activeTab === 'ocs_comment')   return 'สืบค้นความเห็นคณะกรรมการกฤษฎีกา';
+    if (activeTab === 'supreme_court') return 'ระบบสืบค้นคำพิพากษาศาลฎีกา';
+    if (activeTab === 'favorites')     return 'รายการที่บันทึกไว้';
+    if (activeTab === 'archive') {
+      if (viewState.level === 'archiveSub1') return currentArcMain?.title || 'เมนูย่อย 1';
+      if (viewState.level === 'archiveSub2') return currentArcSub1?.title || 'เมนูย่อย 2';
+      if (viewState.level === 'archiveContent') return currentArcSub2?.title || 'รายการเอกสาร';
+      return 'คลังเอกสาร';
+    }
+    switch (viewState.level) {
+      case 'sub': return currentMain?.title || 'หมวดหมู่ย่อย'; case 'topics': return currentSub?.title || 'เลือกเรื่อง'; case 'detail': return currentTopic?.title || 'หัวข้อย่อย'; case 'content': return currentTopic?.title || 'รายละเอียด'; default: return 'คู่มืองานทะเบียนที่ดิน';
+    }
+  };
+
+  const handleGoBack = () => {
+    setSearchQuery('');
+    if (activeTab === 'manual') { if (viewState.level === 'content') setViewState({ ...viewState, level: 'detail', sectionKey: null }); else if (viewState.level === 'detail') setViewState({ ...viewState, level: 'topics', topicId: null }); else if (viewState.level === 'topics') setViewState({ ...viewState, level: 'sub', subId: null }); else if (viewState.level === 'sub') setViewState({ ...viewState, level: 'main', mainId: null }); } 
+    else if (activeTab === 'archive') { if (viewState.level === 'archiveContent') setViewState({ ...viewState, level: 'archiveSub2', topicId: null }); else if (viewState.level === 'archiveSub2') setViewState({ ...viewState, level: 'archiveSub1', subId: null }); else if (viewState.level === 'archiveSub1') setViewState({ ...viewState, level: 'archiveMain', mainId: null }); }
+  };
+
+  const handleNavSelect = (id) => {
+    setSearchQuery(''); setActiveTab(id);
+    if (id === 'manual') setViewState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
+    if (id === 'archive') setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null });
+    if (id === 'decision') setDecisionResetKey(prev => prev + 1);
+  };
+
+  const showBack = (activeTab === 'manual' && viewState.level !== 'main') || (activeTab === 'archive' && viewState.level !== 'archiveMain');
+
+  const breadcrumbItems = useMemo(() => {
+    if (activeTab === 'manual') {
+      const items = [{ label: 'คู่มือ', onClick: () => { setViewState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null }); setSearchQuery(''); } }];
+      if (['sub','topics','detail','content'].includes(viewState.level)) { if (currentMain) items.push({ label: currentMain.title, onClick: () => { setViewState({ level: 'sub', mainId: viewState.mainId, subId: null, topicId: null, sectionKey: null }); setSearchQuery(''); } }); }
+      if (['topics','detail','content'].includes(viewState.level)) { if (currentSub?.title) items.push({ label: currentSub.title, onClick: () => { setViewState({ level: 'topics', mainId: viewState.mainId, subId: viewState.subId, topicId: null, sectionKey: null }); setSearchQuery(''); } }); }
+      if (['detail','content'].includes(viewState.level)) { if (currentTopic) items.push({ label: currentTopic.title, onClick: () => { setViewState({ level: 'detail', mainId: viewState.mainId, subId: viewState.subId, topicId: viewState.topicId, sectionKey: null }); setSearchQuery(''); } }); }
+      if (viewState.level === 'content') { const labels = { meaning: 'ความหมาย', summary: 'ขั้นตอน', laws: 'กฎหมาย', courtRulings: 'คำพิพากษา', councilRulings: 'กฤษฎีกา', deptRulings: 'คำวินิจฉัย', qna: 'ถาม-ตอบ', handbooks: 'คู่มือ' }; items.push({ label: labels[viewState.sectionKey] || viewState.sectionKey }); }
+      return items.length > 1 ? items : [];
+    }
+    if (activeTab === 'archive') {
+      const items = [{ label: 'คลัง', onClick: () => { setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null }); setSearchQuery(''); } }];
+      if (['archiveSub1','archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcMain) items.push({ label: currentArcMain.title, onClick: () => { setViewState({ level: 'archiveSub1', mainId: viewState.mainId, subId: null, topicId: null }); setSearchQuery(''); } }); }
+      if (['archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcSub1?.title) items.push({ label: currentArcSub1.title, onClick: () => { setViewState({ level: 'archiveSub2', mainId: viewState.mainId, subId: viewState.subId, topicId: null }); setSearchQuery(''); } }); }
+      if (viewState.level === 'archiveContent') { if (currentArcSub2?.title) items.push({ label: currentArcSub2.title }); }
+      return items.length > 1 ? items : [];
+    }
+    return [];
+  }, [activeTab, viewState, currentMain, currentSub, currentTopic, currentArcMain, currentArcSub1, currentArcSub2]);
+
+  const SearchBar = ({ placeholder }) => (
+    <div className="relative mb-6">
+      <input type="text" placeholder={placeholder} className="w-full pl-11 pr-12 py-3.5 min-h-[48px] text-base rounded-2xl border border-teal-100 focus:outline-none focus:ring-2 focus:ring-[#006655] shadow-sm bg-[#F0FAF5]/50" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-600 pointer-events-none" size={20} />
+      {searchQuery && ( <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 active:bg-slate-300 transition-colors" aria-label="ล้างการค้นหา"> <X size={16} className="text-slate-400" /> </button> )}
+    </div>
+  );
+
+  const renderArchive = () => { 
+    if (viewState.level === 'archiveMain') { const filtered = archiveDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่คลังเอกสาร..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={Library} emoji={mainItem.emoji} imageUrl={mainItem.imageUrl} onClick={() => { const main = archiveDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const s1 = main.subCategories[0]; if (s1.topics.length === 1 && s1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', mainId: main.id, subId: s1.id, topicId: s1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', mainId: main.id, subId: s1.id, topicId: null }); } else setViewState({ ...viewState, level: 'archiveSub1', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+    if (viewState.level === 'archiveSub1') { const filtered = (currentArcMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay emoji={currentArcMain?.emoji} imageUrl={currentArcMain?.imageUrl} defaultIcon={Library} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">คลังเอกสาร</div><div className="font-bold text-lg">{String(currentArcMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={Layers} imageUrl={subItem.imageUrl} onClick={() => { const sub1 = currentArcMain.subCategories.find(s => s.id === subItem.id); if (sub1?.topics.length === 1 && sub1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', subId: sub1.id, topicId: sub1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', subId: subItem.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+    if (viewState.level === 'archiveSub2') { const filtered = (currentArcSub1?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcSub1?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay defaultIcon={Layers} imageUrl={currentArcSub1?.imageUrl} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentArcMain?.title || '')}</div><div className="font-bold text-lg">{String(currentArcSub1?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} imageUrl={topic.imageUrl} icon={FileText} onClick={() => { setViewState({ ...viewState, level: 'archiveContent', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
+    if (viewState.level === 'archiveContent') { const docs = currentArcSub2?.documents || []; const filtered = docs.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="animate-in slide-in-from-right-4 pb-8"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0"> <h2 className="text-xl md:text-2xl font-bold">{String(currentArcSub2?.title || currentArcSub1?.title || currentArcMain?.title || '')}</h2> </div> <div className="p-4 md:p-8 bg-slate-50/50"> <SearchBar placeholder="ค้นหาไฟล์เอกสาร..." /> <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col"> <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold"> <FileDown size={18} /><h2>รายการเอกสาร ({filtered.length})</h2> </div> <div className="p-4 flex flex-col gap-3"> {filtered.length === 0 ? <span className="text-slate-400 italic text-center py-4">ไม่พบไฟล์</span> : filtered.map((doc, idx) => { const seen = visitedCtxVal.isVisited(doc.url); return ( <a key={idx} href={doc.url} target="_blank" rel="noopener noreferrer" onClick={() => visitedCtxVal.markVisited(doc.url)} className={`flex items-center justify-between px-4 py-3.5 min-h-[56px] rounded-xl border transition-colors group ${seen ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-slate-50 border-slate-200 hover:bg-teal-50 active:bg-teal-100'}`}> <div className="flex items-center gap-3"> <div className={`p-2 rounded-lg border shrink-0 ${seen ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}> <FileDown size={18} className={seen ? 'text-slate-400' : 'text-rose-500'} /> </div> <span className={`font-medium break-words max-w-[200px] md:max-w-md group-hover:text-[#006655] ${seen ? 'text-slate-400' : 'text-slate-700'}`}>{String(doc.title)}</span> {seen && <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">ดูแล้ว</span>} </div> <FileDown size={20} className={`shrink-0 ml-2 ${seen ? 'text-slate-300' : 'text-rose-400'}`} /> </a> ); }) } </div> </div> </div> </div> ); }
+  };
+
+  const renderManual = () => { 
+    if (manualDatabase.length === 0) return <div className="p-10 text-center text-slate-400">ยังไม่มีข้อมูล — ลอง Reload</div>;
+    if (viewState.level === 'main') { const filtered = manualDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่งานทะเบียน..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={BookOpen} emoji={getEmojiForTitle(mainItem.title)} imageUrl={mainItem.iconUrl} bookmarkItem={{ id: `manual-${mainItem.id}`, tab: 'manual', title: mainItem.title, path: [mainItem.title], ids: { mainId: mainItem.id, level: 'sub' } }} onClick={() => { const main = manualDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const sub = main.subCategories[0]; if (sub.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', mainId: main.id, subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', mainId: main.id, subId: sub.id, topicId: null }); } else setViewState({ ...viewState, level: 'sub', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+    if (viewState.level === 'sub') { const filtered = (currentMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentMain?.iconUrl} emoji={getEmojiForTitle(currentMain?.title)} defaultIcon={BookOpen} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">หมวดหมู่หลัก</div><div className="font-bold text-lg">{String(currentMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={FileText} emoji={getEmojiForTitle(subItem.title)} imageUrl={subItem.iconUrl} onClick={() => { const sub = currentMain.subCategories.find(s => s.id === subItem.id); if (sub?.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', subId: sub.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
+    if (viewState.level === 'topics') { const filtered = (currentSub?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentSub?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentSub?.iconUrl} emoji={getEmojiForTitle(currentSub?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentSub?.title || 'รายการทั้งหมด')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} icon={FileText} emoji={getEmojiForTitle(topic.title)} imageUrl={topic.iconUrl} bookmarkItem={{ id: `manual-topic-${topic.id}`, tab: 'manual', title: topic.title, path: [currentMain?.title, currentSub?.title, topic.title], ids: { mainId: viewState.mainId, subId: viewState.subId, topicId: topic.id, level: 'detail' } }} onClick={() => { setViewState({ ...viewState, level: 'detail', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
+    if (viewState.level === 'detail') { const sectionConfigs = [ { key: 'meaning', title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, { key: 'summary', title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, { key: 'laws', title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, { key: 'courtRulings', title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, { key: 'councilRulings', title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, { key: 'deptRulings', title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, { key: 'qna', title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion,emoji:"❓" }, { key: 'handbooks', title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } ]; return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4 pb-8"> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentSub?.title || currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentTopic?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {sectionConfigs.map(cfg => { const hasContent = currentTopic?.content[cfg.key]?.length > 0; if (!hasContent) return null; return <ListItem key={cfg.key} title={cfg.title} icon={cfg.icon} emoji={cfg.emoji} onClick={() => setViewState({ ...viewState, level: 'content', sectionKey: cfg.key })} />; })} </div> </div> ); }
+    if (viewState.level === 'content') { const sectionKey = viewState.sectionKey; const sectionConfig = { meaning: { title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, summary: { title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, laws: { title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, courtRulings: { title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, councilRulings: { title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, deptRulings: { title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, qna: { title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion, emoji: "❓" }, handbooks: { title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } }; const activeConfig = sectionConfig[sectionKey]; const activeContent = currentTopic?.content[sectionKey]; return ( <div className="animate-in slide-in-from-right-4 pb-8 print:block"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0 print:bg-white print:text-[#006655] print:shadow-none print:border-b print:border-teal-200"> <div className="flex items-start justify-between gap-3"> <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-10 h-10" iconSize={20} textClass="text-xl" /> {String(currentTopic?.title || '')} </h2> <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 print:hidden"> <Printer size={16} /><span className="hidden sm:inline">พิมพ์</span> </button> </div> <div className="mt-2 text-teal-200 print:text-teal-700 text-sm flex gap-2 items-center"><ChevronRight size={14} /><span>{String(activeConfig?.title || '')}</span></div> </div> <div className="p-4 md:p-8 bg-slate-50/50 print:bg-white print:p-0 print:pt-4"> <ContentSection title={activeConfig?.title || ''} icon={activeConfig?.icon || FileText} emoji={activeConfig?.emoji} entries={activeContent} /> </div> </div> ); }
+  };
+
+  // ✅ ระบบสวิตช์เปิด-ปิดความสูง (App Shell Mode) 
+  // หากเป็นหน้า กฤษฎีกา, ศาลฎีกา, หรือ Chatbot จะล็อกแอปไม่ให้เลื่อน เพื่อเปิดใช้ฟังก์ชันข้างใน
+  const isFixedTab = ['ocs_comment', 'supreme_court', 'chatbot'].includes(activeTab);
+
+  useEffect(() => {
+    if (isFixedTab) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+  }, [isFixedTab]);
+
+  return (
+    <ErrorBoundary>
+    <BookmarkCtx.Provider value={bookmarkCtxVal}>
+    <VisitedCtx.Provider value={visitedCtxVal}>
+    <div lang="th" className="flex justify-center items-start min-h-[100dvh] w-full md:p-4 lg:p-8">
+      {/* Container หลัก: ถ้าเป็นหน้าล็อก (Iframe/Chat) จะไม่ยอมให้ยืดเกินจอ, หน้าอื่นๆ จะยาวทะลุจอได้ */}
+      <div className={`w-full max-w-2xl md:max-w-5xl lg:max-w-7xl bg-white md:rounded-3xl md:shadow-xl flex flex-col md:flex-row relative ${isFixedTab ? 'h-[100dvh] md:h-[85vh] overflow-hidden' : 'min-h-[100dvh] md:min-h-[85vh]'}`}>
+
+        <BottomNav activeTab={activeTab} onSelect={handleNavSelect} bookmarkCount={bookmarks.length} />
+
+        {/* Content Wrapper */}
+        <div className={`flex-1 flex flex-col w-full ${isFixedTab ? 'pb-[72px]' : 'pb-[90px]'} md:pb-0 relative`}>
+          <Header title={getHeaderTitle()} onBack={handleGoBack} showBack={showBack} onOpenAdmin={() => setAdminOpen(true)} breadcrumbItems={breadcrumbItems} globalSearch={!isLoading && (<GlobalSearch manualDatabase={manualDatabase} archiveDatabase={archiveDatabase} decisionRules={decisionRules} chatbotData={chatbotData} onNavigate={handleGlobalNavigate} onSearch={trackSearch} />)} />
+
+          {/* Main Area */}
+          <main className={`w-full flex flex-col relative ${isFixedTab ? 'flex-1 overflow-hidden' : 'flex-1'}`}>
+            {newDataNotice && (
+              <div className="bg-teal-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm animate-in slide-in-from-top-2 z-10 shrink-0">
+                <div className="flex items-center gap-2">
+                  <Bell size={15} className="shrink-0" />
+                  <span className="font-medium">มีข้อมูลใหม่:&nbsp; {Object.entries(newDataNotice).map(([k, v]) => { const labels = { manual: 'คู่มือ', decision: 'Decision', archive: 'คลัง', chatbot: 'Chatbot' }; return `${labels[k] || k} +${v}`; }).join(', ')} </span>
                 </div>
-                {error && ( <div className="mt-6 p-4 bg-rose-50 text-rose-700 rounded-2xl border border-rose-200 text-sm flex items-start gap-2"> <AlertCircle size={18} className="shrink-0 mt-0.5" /> <div><strong className="font-bold">เกิดข้อผิดพลาด:</strong> {error}</div> </div> )}
-                {results && ( <div className="mt-8 animate-in slide-in-from-bottom-4"> <div className="flex justify-between items-center mb-4"> <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"> <CheckCircle2 className="text-emerald-500" size={24} /> ผลการค้นหา </h3> <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-2 py-1 rounded-lg font-mono"> {endpointLabel} </span> </div> <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl overflow-y-auto max-h-[600px] shadow-sm"> {results.length === 0 ? ( <p className="text-slate-500 text-center py-8">ไม่พบข้อมูลที่ตรงกับคำค้นหา</p> ) : ( results.map((item, index) => { const title = item.title || `คำพิพากษาศาลฎีกาที่ ${item.deka_no || '-'}`; const text = item.long_text || item.short_text || 'ไม่มีรายละเอียดข้อความ'; return ( <div key={index} className="mb-6 pb-6 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0"> <h4 className="text-lg font-bold text-[#006655] mb-3 flex items-center flex-wrap gap-2"> {results.length > 1 && <span className="bg-emerald-100 text-emerald-800 w-6 h-6 flex items-center justify-center rounded-full text-xs">{index + 1}</span>} {title} {item.score && <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Score: {item.score.toFixed(2)}</span>} </h4> <p className="text-slate-700 text-sm md:text-base leading-relaxed text-justify whitespace-pre-wrap">{text}</p> </div> ); }) )} </div> <details className="mt-4 text-sm text-slate-500 cursor-pointer group"> <summary className="font-medium group-hover:text-slate-800 transition-colors">ดูข้อมูล JSON ดิบ (สำหรับตรวจสอบ)</summary> <pre className="mt-3 bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-[10px] font-mono shadow-inner"> {JSON.stringify(rawJson, null, 2)} </pre> </details> </div> )}
+                <button onClick={() => setNewDataNotice(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 shrink-0"><X size={14} /></button>
               </div>
-            </div>
-          );
-        };
+            )}
 
-        // ==========================================
-        // 🌟 Web Embed View (โหลดเต็มจอสำหรับ Iframe)
-        // ==========================================
-        const WebEmbedView = ({ url, title, icon: Icon = Globe, theme = 'purple' }) => {
-          const [isLoading, setIsLoading] = useState(true);
-
-          const THEMES = {
-            purple: { spinner: 'text-purple-500' },
-            rose: { spinner: 'text-rose-500' }
-          };
-          
-          const t = THEMES[theme] || THEMES.purple;
-
-          return (
-            <div className="absolute inset-0 flex flex-col z-10 bg-slate-50">
-              {isLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-20 backdrop-blur-sm">
-                  <Loader2 className={`animate-spin ${t.spinner} mb-3`} size={36} />
-                  <p className="text-sm text-slate-500 font-medium bg-white px-4 py-1.5 rounded-full shadow-sm">
-                    กำลังโหลดหน้าเว็บ...
-                  </p>
-                </div>
-              )}
-              <iframe
-                src={url}
-                className="w-full h-full border-none z-10 bg-white"
-                title={title}
-                onLoad={() => setIsLoading(false)}
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-              />
-            </div>
-          );
-        };
-
-
-        // ==========================================
-        // Bottom / Side Navigation
-        // ==========================================
-        const NAV_ITEMS = [
-          { id: 'manual',       label: 'คู่มือ',   Icon: BookOpen,      color: 'teal'   },
-          { id: 'archive',      label: 'คลัง',     Icon: Library,       color: 'blue'   },
-          { id: 'decision',     label: 'Decision', Icon: Cpu,           color: 'indigo' },
-          { id: 'legal_search', label: 'ค้นฎีกา',   Icon: Scale,         color: 'emerald'}, 
-          { id: 'ocs_comment',  label: 'กฤษฎีกา',   Icon: Globe,         color: 'purple' },
-          { id: 'supreme_court',label: 'ศาลฎีกา',   Icon: Gavel,         color: 'rose'   }, 
-          { id: 'chatbot',      label: 'ถาม-ตอบ',  Icon: MessageCircle, color: 'cyan'   },
-          { id: 'favorites',    label: 'บันทึก',   Icon: Star,          color: 'amber'  },
-        ];
-
-        const NAV_COLOR_MAP = {
-          teal:    { active: 'text-teal-600',    activeBg: 'bg-teal-50',    dot: 'bg-teal-500'    },
-          blue:    { active: 'text-blue-600',    activeBg: 'bg-blue-50',    dot: 'bg-blue-500'    },
-          indigo:  { active: 'text-indigo-600',  activeBg: 'bg-indigo-50',  dot: 'bg-indigo-500'  },
-          emerald: { active: 'text-emerald-600', activeBg: 'bg-emerald-50', dot: 'bg-emerald-500' }, 
-          purple:  { active: 'text-purple-600',  activeBg: 'bg-purple-50',  dot: 'bg-purple-500'  },
-          rose:    { active: 'text-rose-600',    activeBg: 'bg-rose-50',    dot: 'bg-rose-500'    }, 
-          cyan:    { active: 'text-cyan-600',    activeBg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
-          amber:   { active: 'text-amber-500',   activeBg: 'bg-amber-50',   dot: 'bg-amber-400'   },
-        };
-
-        const FavoritesView = ({ bookmarks, onNavigate, onRemove }) => { 
-          const META = { 
-            manual: { label: 'คู่มือ', Icon: BookOpen, badge: 'bg-teal-100 text-teal-700' }, 
-            archive: { label: 'คลังเอกสาร', Icon: Library, badge: 'bg-blue-100 text-blue-700' }, 
-            decision: { label: 'Decision', Icon: Cpu, badge: 'bg-indigo-100 text-indigo-700'}, 
-            chatbot: { label: 'ถาม-ตอบ', Icon: MessageCircle, badge: 'bg-cyan-100 text-cyan-700' }, 
-            legal_search: { label: 'ค้นฎีกา', Icon: Scale, badge: 'bg-emerald-100 text-emerald-700' }, 
-            ocs_comment: { label: 'กฤษฎีกา', Icon: Globe, badge: 'bg-purple-100 text-purple-700' },
-            supreme_court: { label: 'ศาลฎีกา', Icon: Gavel, badge: 'bg-rose-100 text-rose-700' }
-          };
-          if (bookmarks.length === 0) { return ( <div className="flex flex-col items-center justify-center h-full p-10 text-center text-slate-400 gap-4"> <Star size={48} className="text-slate-200" /> <p className="font-semibold text-lg">ยังไม่มีรายการบันทึก</p> <p className="text-sm">กดปุ่ม ⭐ ที่หัวข้อใดก็ได้เพื่อบันทึกไว้ที่นี่</p> </div> ); }
-          return ( <div className="p-4 md:p-6 animate-in fade-in"> <div className="flex items-center justify-between mb-5"> <h2 className="font-bold text-[#006655] text-lg flex items-center gap-2"> <Star size={20} className="text-amber-400" fill="currentColor" /> รายการที่บันทึกไว้ ({bookmarks.length}) </h2> <button onClick={() => { if (window.confirm('ล้างรายการทั้งหมด?')) { bookmarkSave([]); onRemove([]); } }} className="text-xs text-slate-400 hover:text-rose-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-50"> ล้างทั้งหมด </button> </div> <div className="flex flex-col gap-3"> {bookmarks.map(item => { const meta = META[item.tab] || META.manual; const Icon = meta.Icon; return ( <div key={item.id} className="flex items-center gap-3 bg-[#F0FAF5] border border-teal-100/50 rounded-2xl px-4 py-3 min-h-[64px] group hover:shadow-md transition-all"> <button onClick={() => onNavigate(item)} className="flex-1 flex items-center gap-3 text-left min-w-0"> <div className="bg-white p-2 rounded-xl border border-teal-100 shrink-0"><Icon size={18} className="text-[#006655]" /></div> <div className="min-w-0"> <p className="font-bold text-[#006655] text-sm truncate">{item.title}</p> {item.path?.length > 0 && ( <p className="text-[11px] text-slate-400 truncate">{item.path.filter(Boolean).join(' › ')}</p> )} </div> </button> <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${meta.badge}`}>{meta.label}</span> <button onClick={() => onRemove(bookmarks.filter(b => b.id !== item.id))} className="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:text-rose-400 hover:bg-rose-50 transition-all shrink-0 opacity-0 group-hover:opacity-100" aria-label="ลบออก"> <X size={15} /> </button> </div> ); })} </div> </div> );
-        };
-
-        const BottomNav = ({ activeTab, onSelect, bookmarkCount }) => (
-          <nav className="absolute md:relative bottom-0 w-full md:w-24 lg:w-28 bg-white md:bg-slate-50/80 border-t md:border-t-0 md:border-r border-slate-200 flex md:flex-col justify-around md:justify-start items-stretch h-[72px] md:h-full md:pt-6 md:pb-8 z-40 order-2 md:order-1 shadow-[0_-4px_12px_rgba(0,0,0,0.07)] md:shadow-none overflow-x-auto scrollbar-none">
-            {NAV_ITEMS.map(({ id, label, Icon, color }) => {
-              const isActive = activeTab === id; const c = NAV_COLOR_MAP[color]; const showBadge = id === 'favorites' && bookmarkCount > 0;
-              return (
-                <button key={id} onClick={() => onSelect(id)} className={`relative flex flex-col items-center justify-center gap-1 flex-1 md:flex-none md:w-full md:py-4 md:px-2 min-h-[56px] min-w-[64px] md:min-h-0 rounded-none md:rounded-xl mx-0 md:mx-2 md:mb-1 transition-all duration-150 ${isActive ? `${c.active} md:${c.activeBg}` : 'text-slate-400 hover:text-slate-600'}`} aria-label={label}>
-                  {isActive && ( <><span className={`absolute top-0 left-1/4 right-1/4 h-0.5 ${c.dot} rounded-full md:hidden`} /><span className={`hidden md:block absolute left-0 top-3 bottom-3 w-1 ${c.dot} rounded-full`} /></> )}
-                  <div className="relative"> <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} fill={id === 'favorites' && isActive ? 'currentColor' : 'none'} /> {showBadge && ( <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-0.5 bg-amber-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"> {bookmarkCount > 99 ? '99+' : bookmarkCount} </span> )} </div>
-                  <span className={`text-[10px] md:text-xs font-semibold tracking-tight leading-none ${isActive ? 'font-bold' : ''}`}>{label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        );
-
-        // ==========================================
-        // 5. Main App
-        // ==========================================
-        function App() {
-          const [activeTab, setActiveTab]       = useState('manual');
-          const [adminOpen, setAdminOpen]       = useState(false);
-          const [sheetUrls, setSheetUrls]       = useState({ ...DEFAULT_URLS });
-          const [rawManualRows, setRawManualRows]     = useState([]);
-          const [rawDecisionRows, setRawDecisionRows] = useState([]);
-          const [rawChatbotRows, setRawChatbotRows]   = useState([]);
-          const [rawArchiveRows, setRawArchiveRows]   = useState([]);
-          const [loadSources, setLoadSources]   = useState([]);
-          const [isLoading, setIsLoading]       = useState(true);
-          const [loadError, setLoadError]       = useState(false);
-          const [viewState, setViewState]       = useState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
-          const [searchQuery, setSearchQuery]   = useState('');
-          const [decisionResetKey, setDecisionResetKey] = useState(0);
-          const [newDataNotice, setNewDataNotice]       = useState(null);
-
-          const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
-          const { markVisited, isVisited } = useVisited();
-          const bookmarkCtxVal = useMemo(() => ({ toggle: toggleBookmark, isBookmarked }), [toggleBookmark, isBookmarked]);
-          const visitedCtxVal  = useMemo(() => ({ markVisited, isVisited }), [markVisited, isVisited]);
-          const { trackPageview, trackSearch, trackChatbotMiss } = useAnalytics();
-          const [, forceBookmarkSync] = useState(0);
-          useEffect(() => { const handler = () => forceBookmarkSync(n => n + 1); window.addEventListener('app_bookmark_update', handler); return () => window.removeEventListener('app_bookmark_update', handler); }, []);
-
-          const manualDatabase  = useMemo(() => transformManualData(rawManualRows),   [rawManualRows]);
-          const decisionRules   = useMemo(() => transformDecisionData(rawDecisionRows), [rawDecisionRows]);
-          const archiveDatabase = useMemo(() => transformArchiveData(rawArchiveRows),  [rawArchiveRows]);
-          const chatbotData     = rawChatbotRows;
-
-          const currentMain    = useMemo(() => manualDatabase.find(m => m.id === viewState.mainId),            [manualDatabase, viewState.mainId]);
-          const currentSub     = useMemo(() => currentMain?.subCategories.find(s => s.id === viewState.subId), [currentMain, viewState.subId]);
-          const currentTopic   = useMemo(() => currentSub?.topics.find(t => t.id === viewState.topicId),       [currentSub, viewState.topicId]);
-          const currentArcMain = useMemo(() => archiveDatabase.find(m => m.id === viewState.mainId),           [archiveDatabase, viewState.mainId]);
-          const currentArcSub1 = useMemo(() => currentArcMain?.subCategories?.find(s => s.id === viewState.subId), [currentArcMain, viewState.subId]);
-          const currentArcSub2 = useMemo(() => currentArcSub1?.topics?.find(t => t.id === viewState.topicId),      [currentArcSub1, viewState.topicId]);
-
-          const abortRef = useRef(null);
-
-          const fetchWithTimeout = async (resource, options = {}) => {
-            const { timeout = 15000 } = options;
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            const response = await fetch(resource, { ...options, signal: options.signal || controller.signal });
-            clearTimeout(id);
-            return response;
-          };
-
-          const fetchCSV = async (cacheKey, originalUrl, signal, forceRefresh) => {
-            if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return cached; }
-            let fetchUrl = originalUrl.includes('?') ? `${originalUrl}&_t=${Date.now()}` : `${originalUrl}?_t=${Date.now()}`;
-            
-            try {
-              const r = await fetchWithTimeout(fetchUrl, { signal, timeout: 8000 });
-              if (!r.ok) throw new Error(`HTTP ${r.status}`);
-              const text = await r.text();
-              const rows = parseCSV(text);
-              cacheSet(cacheKey, rows);
-              return rows;
-            } catch (err) {
-              if (err.name === 'AbortError' && signal.aborted) throw err;
-              console.warn(`[Fallback] Primary fetch failed for ${cacheKey}, trying proxy...`, err);
-              const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fetchUrl);
-              const r2 = await fetchWithTimeout(proxyUrl, { signal, timeout: 15000 });
-              if (!r2.ok) throw new Error(`Proxy HTTP ${r2.status}`);
-              const text2 = await r2.text();
-              const rows2 = parseCSV(text2);
-              cacheSet(cacheKey, rows2);
-              return rows2;
-            }
-          };
-
-          const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false) => {
-            if (abortRef.current) abortRef.current.abort(); const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
-            setIsLoading(true); setLoadError(false);
-            const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
-            setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
-            
-            try {
-              updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual, signal, forceRefresh)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
-              if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision, signal, forceRefresh)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('decision', 'error'); }
-              if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive, signal, forceRefresh)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('archive', 'error'); }
-              if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url, signal, forceRefresh); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
-            } catch (err) { if (err.name !== 'AbortError') { console.error(err); setLoadError(true); } } finally { if (!signal.aborted) setIsLoading(false); }
-          }, [sheetUrls]);
-
-          useEffect(() => { loadDataFromSheets(); return () => abortRef.current?.abort(); }, []);
-
-          const prevCountsRef = useRef(null);
-          useEffect(() => {
-            if (isLoading) return; const current = { manual: rawManualRows.length, decision: rawDecisionRows.length, archive: rawArchiveRows.length, chatbot: rawChatbotRows.length, };
-            if (prevCountsRef.current) { const diff = {}; Object.keys(current).forEach(k => { const delta = current[k] - prevCountsRef.current[k]; if (delta > 0) diff[k] = delta; }); if (Object.keys(diff).length > 0) setNewDataNotice(diff); }
-            prevCountsRef.current = current;
-          }, [isLoading]);
-
-          const handleUpdateUrls = (newUrls) => { cacheClear(); setSheetUrls(newUrls); };
-
-          const handleGlobalNavigate = useCallback((result) => {
-            setSearchQuery(''); setActiveTab(result.tab); trackPageview(result.tab, result.title, result.path);
-            if (result.tab === 'manual') { const { mainId, subId, topicId, sectionKey, level } = result.ids; setViewState({ level: level || 'detail', mainId: mainId || null, subId: subId || null, topicId: topicId || null, sectionKey: sectionKey || null }); } 
-            else if (result.tab === 'archive') { const { mainId, subId, topicId, level } = result.ids; setViewState({ level: level || 'archiveContent', mainId: mainId || null, subId: subId || null, topicId: topicId || null, sectionKey: null }); } 
-            else { setViewState({ level: result.tab === 'archive' ? 'archiveMain' : 'main', mainId: null, subId: null, topicId: null, sectionKey: null }); if (result.tab === 'decision') setDecisionResetKey(prev => prev + 1); }
-          }, []);
-
-          const getHeaderTitle = () => {
-            if (activeTab === 'decision')      return 'ระบบช่วยตัดสินใจ';
-            if (activeTab === 'chatbot')       return 'Chatbot ถาม-ตอบ';
-            if (activeTab === 'legal_search')  return 'ค้นคำพิพากษาศาลฎีกา'; 
-            if (activeTab === 'ocs_comment')   return 'สืบค้นความเห็นคณะกรรมการกฤษฎีกา';
-            if (activeTab === 'supreme_court') return 'ระบบสืบค้นคำพิพากษาศาลฎีกา';
-            if (activeTab === 'favorites')     return 'รายการที่บันทึกไว้';
-            if (activeTab === 'archive') {
-              if (viewState.level === 'archiveSub1') return currentArcMain?.title || 'เมนูย่อย 1';
-              if (viewState.level === 'archiveSub2') return currentArcSub1?.title || 'เมนูย่อย 2';
-              if (viewState.level === 'archiveContent') return currentArcSub2?.title || 'รายการเอกสาร';
-              return 'คลังเอกสาร';
-            }
-            switch (viewState.level) {
-              case 'sub': return currentMain?.title || 'หมวดหมู่ย่อย'; case 'topics': return currentSub?.title || 'เลือกเรื่อง'; case 'detail': return currentTopic?.title || 'หัวข้อย่อย'; case 'content': return currentTopic?.title || 'รายละเอียด'; default: return 'คู่มืองานทะเบียนที่ดิน';
-            }
-          };
-
-          const handleGoBack = () => {
-            setSearchQuery('');
-            if (activeTab === 'manual') { if (viewState.level === 'content') setViewState({ ...viewState, level: 'detail', sectionKey: null }); else if (viewState.level === 'detail') setViewState({ ...viewState, level: 'topics', topicId: null }); else if (viewState.level === 'topics') setViewState({ ...viewState, level: 'sub', subId: null }); else if (viewState.level === 'sub') setViewState({ ...viewState, level: 'main', mainId: null }); } 
-            else if (activeTab === 'archive') { if (viewState.level === 'archiveContent') setViewState({ ...viewState, level: 'archiveSub2', topicId: null }); else if (viewState.level === 'archiveSub2') setViewState({ ...viewState, level: 'archiveSub1', subId: null }); else if (viewState.level === 'archiveSub1') setViewState({ ...viewState, level: 'archiveMain', mainId: null }); }
-          };
-
-          const handleNavSelect = (id) => {
-            setSearchQuery(''); setActiveTab(id);
-            if (id === 'manual') setViewState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
-            if (id === 'archive') setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null });
-            if (id === 'decision') setDecisionResetKey(prev => prev + 1);
-          };
-
-          const showBack = (activeTab === 'manual' && viewState.level !== 'main') || (activeTab === 'archive' && viewState.level !== 'archiveMain');
-
-          const breadcrumbItems = useMemo(() => {
-            if (activeTab === 'manual') {
-              const items = [{ label: 'คู่มือ', onClick: () => { setViewState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null }); setSearchQuery(''); } }];
-              if (['sub','topics','detail','content'].includes(viewState.level)) { if (currentMain) items.push({ label: currentMain.title, onClick: () => { setViewState({ level: 'sub', mainId: viewState.mainId, subId: null, topicId: null, sectionKey: null }); setSearchQuery(''); } }); }
-              if (['topics','detail','content'].includes(viewState.level)) { if (currentSub?.title) items.push({ label: currentSub.title, onClick: () => { setViewState({ level: 'topics', mainId: viewState.mainId, subId: viewState.subId, topicId: null, sectionKey: null }); setSearchQuery(''); } }); }
-              if (['detail','content'].includes(viewState.level)) { if (currentTopic) items.push({ label: currentTopic.title, onClick: () => { setViewState({ level: 'detail', mainId: viewState.mainId, subId: viewState.subId, topicId: viewState.topicId, sectionKey: null }); setSearchQuery(''); } }); }
-              if (viewState.level === 'content') { const labels = { meaning: 'ความหมาย', summary: 'ขั้นตอน', laws: 'กฎหมาย', courtRulings: 'คำพิพากษา', councilRulings: 'กฤษฎีกา', deptRulings: 'คำวินิจฉัย', qna: 'ถาม-ตอบ', handbooks: 'คู่มือ' }; items.push({ label: labels[viewState.sectionKey] || viewState.sectionKey }); }
-              return items.length > 1 ? items : [];
-            }
-            if (activeTab === 'archive') {
-              const items = [{ label: 'คลัง', onClick: () => { setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null }); setSearchQuery(''); } }];
-              if (['archiveSub1','archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcMain) items.push({ label: currentArcMain.title, onClick: () => { setViewState({ level: 'archiveSub1', mainId: viewState.mainId, subId: null, topicId: null }); setSearchQuery(''); } }); }
-              if (['archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcSub1?.title) items.push({ label: currentArcSub1.title, onClick: () => { setViewState({ level: 'archiveSub2', mainId: viewState.mainId, subId: viewState.subId, topicId: null }); setSearchQuery(''); } }); }
-              if (viewState.level === 'archiveContent') { if (currentArcSub2?.title) items.push({ label: currentArcSub2.title }); }
-              return items.length > 1 ? items : [];
-            }
-            return [];
-          }, [activeTab, viewState, currentMain, currentSub, currentTopic, currentArcMain, currentArcSub1, currentArcSub2]);
-
-          const SearchBar = ({ placeholder }) => (
-            <div className="relative mb-6">
-              <input type="text" placeholder={placeholder} className="w-full pl-11 pr-12 py-3.5 min-h-[48px] text-base rounded-2xl border border-teal-100 focus:outline-none focus:ring-2 focus:ring-[#006655] shadow-sm bg-[#F0FAF5]/50" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-600 pointer-events-none" size={20} />
-              {searchQuery && ( <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 active:bg-slate-300 transition-colors" aria-label="ล้างการค้นหา"> <X size={16} className="text-slate-400" /> </button> )}
-            </div>
-          );
-
-          const renderArchive = () => { 
-            if (viewState.level === 'archiveMain') { const filtered = archiveDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่คลังเอกสาร..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={Library} emoji={mainItem.emoji} imageUrl={mainItem.imageUrl} onClick={() => { const main = archiveDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const s1 = main.subCategories[0]; if (s1.topics.length === 1 && s1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', mainId: main.id, subId: s1.id, topicId: s1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', mainId: main.id, subId: s1.id, topicId: null }); } else setViewState({ ...viewState, level: 'archiveSub1', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
-            if (viewState.level === 'archiveSub1') { const filtered = (currentArcMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay emoji={currentArcMain?.emoji} imageUrl={currentArcMain?.imageUrl} defaultIcon={Library} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">คลังเอกสาร</div><div className="font-bold text-lg">{String(currentArcMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={Layers} imageUrl={subItem.imageUrl} onClick={() => { const sub1 = currentArcMain.subCategories.find(s => s.id === subItem.id); if (sub1?.topics.length === 1 && sub1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', subId: sub1.id, topicId: sub1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', subId: subItem.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
-            if (viewState.level === 'archiveSub2') { const filtered = (currentArcSub1?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcSub1?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay defaultIcon={Layers} imageUrl={currentArcSub1?.imageUrl} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentArcMain?.title || '')}</div><div className="font-bold text-lg">{String(currentArcSub1?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} imageUrl={topic.imageUrl} icon={FileText} onClick={() => { setViewState({ ...viewState, level: 'archiveContent', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
-            if (viewState.level === 'archiveContent') { const docs = currentArcSub2?.documents || []; const filtered = docs.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="animate-in slide-in-from-right-4 h-full flex flex-col"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0"> <h2 className="text-xl md:text-2xl font-bold">{String(currentArcSub2?.title || currentArcSub1?.title || currentArcMain?.title || '')}</h2> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50"> <SearchBar placeholder="ค้นหาไฟล์เอกสาร..." /> <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"> <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold"> <FileDown size={18} /><h2>รายการเอกสาร ({filtered.length})</h2> </div> <div className="p-4 flex flex-col gap-3"> {filtered.length === 0 ? <span className="text-slate-400 italic text-center py-4">ไม่พบไฟล์</span> : filtered.map((doc, idx) => { const seen = visitedCtxVal.isVisited(doc.url); return ( <a key={idx} href={doc.url} target="_blank" rel="noopener noreferrer" onClick={() => visitedCtxVal.markVisited(doc.url)} className={`flex items-center justify-between px-4 py-3.5 min-h-[56px] rounded-xl border transition-colors group ${seen ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-slate-50 border-slate-200 hover:bg-teal-50 active:bg-teal-100'}`}> <div className="flex items-center gap-3"> <div className={`p-2 rounded-lg border shrink-0 ${seen ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}> <FileDown size={18} className={seen ? 'text-slate-400' : 'text-rose-500'} /> </div> <span className={`font-medium break-words max-w-[200px] md:max-w-md group-hover:text-[#006655] ${seen ? 'text-slate-400' : 'text-slate-700'}`}>{String(doc.title)}</span> {seen && <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">ดูแล้ว</span>} </div> <FileDown size={20} className={`shrink-0 ml-2 ${seen ? 'text-slate-300' : 'text-rose-400'}`} /> </a> ); }) } </div> </div> </div> </div> ); }
-          };
-
-          const renderManual = () => { 
-            if (manualDatabase.length === 0) return <div className="p-10 text-center text-slate-400">ยังไม่มีข้อมูล — ลอง Reload</div>;
-            if (viewState.level === 'main') { const filtered = manualDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่งานทะเบียน..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={BookOpen} emoji={getEmojiForTitle(mainItem.title)} imageUrl={mainItem.iconUrl} bookmarkItem={{ id: `manual-${mainItem.id}`, tab: 'manual', title: mainItem.title, path: [mainItem.title], ids: { mainId: mainItem.id, level: 'sub' } }} onClick={() => { const main = manualDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const sub = main.subCategories[0]; if (sub.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', mainId: main.id, subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', mainId: main.id, subId: sub.id, topicId: null }); } else setViewState({ ...viewState, level: 'sub', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
-            if (viewState.level === 'sub') { const filtered = (currentMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentMain?.iconUrl} emoji={getEmojiForTitle(currentMain?.title)} defaultIcon={BookOpen} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">หมวดหมู่หลัก</div><div className="font-bold text-lg">{String(currentMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={FileText} emoji={getEmojiForTitle(subItem.title)} imageUrl={subItem.iconUrl} onClick={() => { const sub = currentMain.subCategories.find(s => s.id === subItem.id); if (sub?.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', subId: sub.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
-            if (viewState.level === 'topics') { const filtered = (currentSub?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentSub?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentSub?.iconUrl} emoji={getEmojiForTitle(currentSub?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentSub?.title || 'รายการทั้งหมด')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} icon={FileText} emoji={getEmojiForTitle(topic.title)} imageUrl={topic.iconUrl} bookmarkItem={{ id: `manual-topic-${topic.id}`, tab: 'manual', title: topic.title, path: [currentMain?.title, currentSub?.title, topic.title], ids: { mainId: viewState.mainId, subId: viewState.subId, topicId: topic.id, level: 'detail' } }} onClick={() => { setViewState({ ...viewState, level: 'detail', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
-            if (viewState.level === 'detail') { const sectionConfigs = [ { key: 'meaning', title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, { key: 'summary', title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, { key: 'laws', title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, { key: 'courtRulings', title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, { key: 'councilRulings', title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, { key: 'deptRulings', title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, { key: 'qna', title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion,emoji:"❓" }, { key: 'handbooks', title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } ]; return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4 pb-8"> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentSub?.title || currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentTopic?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {sectionConfigs.map(cfg => { const hasContent = currentTopic?.content[cfg.key]?.length > 0; if (!hasContent) return null; return <ListItem key={cfg.key} title={cfg.title} icon={cfg.icon} emoji={cfg.emoji} onClick={() => setViewState({ ...viewState, level: 'content', sectionKey: cfg.key })} />; })} </div> </div> ); }
-            if (viewState.level === 'content') { const sectionKey = viewState.sectionKey; const sectionConfig = { meaning: { title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, summary: { title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, laws: { title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, courtRulings: { title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, councilRulings: { title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, deptRulings: { title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, qna: { title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion, emoji: "❓" }, handbooks: { title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } }; const activeConfig = sectionConfig[sectionKey]; const activeContent = currentTopic?.content[sectionKey]; return ( <div className="animate-in slide-in-from-right-4 h-full flex flex-col print:block"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0 print:bg-white print:text-[#006655] print:shadow-none print:border-b print:border-teal-200"> <div className="flex items-start justify-between gap-3"> <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-10 h-10" iconSize={20} textClass="text-xl" /> {String(currentTopic?.title || '')} </h2> <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 print:hidden"> <Printer size={16} /><span className="hidden sm:inline">พิมพ์</span> </button> </div> <div className="mt-2 text-teal-200 print:text-teal-700 text-sm flex gap-2 items-center"><ChevronRight size={14} /><span>{String(activeConfig?.title || '')}</span></div> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50 print:bg-white print:p-0 print:pt-4"> <ContentSection title={activeConfig?.title || ''} icon={activeConfig?.icon || FileText} emoji={activeConfig?.emoji} entries={activeContent} /> </div> </div> ); }
-          };
-
-          // ตัวแปรเช็คว่าหน้าไหนดึงพื้นที่คงที่ (Iframe)
-          const isFixedTab = ['ocs_comment', 'supreme_court'].includes(activeTab);
-
-          return (
-            <ErrorBoundary>
-            <BookmarkCtx.Provider value={bookmarkCtxVal}>
-            <VisitedCtx.Provider value={visitedCtxVal}>
-            <div lang="th" className="fixed inset-0 bg-slate-100 font-sans flex justify-center md:items-center md:p-4 lg:p-8">
-              <div className="w-full h-full max-w-2xl md:max-w-5xl lg:max-w-7xl md:h-[90vh] bg-white md:rounded-3xl shadow-2xl relative flex flex-col md:flex-row overflow-hidden border border-slate-200">
-
-                <BottomNav activeTab={activeTab} onSelect={handleNavSelect} bookmarkCount={bookmarks.length} />
-
-                <div className="flex-1 flex flex-col order-1 md:order-2 h-full overflow-hidden relative">
-                  <Header
-                    title={getHeaderTitle()}
-                    onBack={handleGoBack}
-                    showBack={showBack}
-                    onOpenAdmin={() => setAdminOpen(true)}
-                    breadcrumbItems={breadcrumbItems}
-                    globalSearch={
-                      !isLoading && (
-                        <GlobalSearch
-                          manualDatabase={manualDatabase}
-                          archiveDatabase={archiveDatabase}
-                          decisionRules={decisionRules}
-                          chatbotData={chatbotData}
-                          onNavigate={handleGlobalNavigate}
-                          onSearch={trackSearch}
-                        />
-                      )
-                    }
-                  />
-
-                  {/* 🌟 สวิตช์: เลือกว่าจะให้ 1) เลื่อนได้ (สำหรับแท็บปกติ) หรือ 2) ล็อกกรอบตายตัว (สำหรับ Iframe) */}
-                  <main className={`flex-1 relative scroll-smooth ${!isFixedTab ? 'overflow-y-auto bg-slate-50 pb-[72px] md:pb-0' : 'overflow-hidden bg-slate-50'}`}>
-                    
-                    {newDataNotice && (
-                      <div className="bg-teal-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm animate-in slide-in-from-top-2 z-10 relative">
-                        <div className="flex items-center gap-2">
-                          <Bell size={15} className="shrink-0" />
-                          <span className="font-medium">มีข้อมูลใหม่:&nbsp; {Object.entries(newDataNotice).map(([k, v]) => { const labels = { manual: 'คู่มือ', decision: 'Decision', archive: 'คลัง', chatbot: 'Chatbot' }; return `${labels[k] || k} +${v}`; }).join(', ')} </span>
-                        </div>
-                        <button onClick={() => setNewDataNotice(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 shrink-0"><X size={14} /></button>
-                      </div>
-                    )}
-
-                    {loadError && (
-                      <div className="bg-rose-50 text-rose-600 p-3 text-center text-sm z-20 border-b border-rose-200 flex items-center justify-center gap-2 relative">
-                        <AlertCircle size={16} /><span>โหลดข้อมูลบางส่วนล้มเหลว</span>
-                        <button onClick={() => loadDataFromSheets(sheetUrls)} className="underline font-bold ml-1">ลองใหม่</button>
-                      </div>
-                    )}
-                    
-                    {isLoading ? (
-                      <LoadingScreen sources={loadSources} />
-                    ) : (
-                      <>
-                        {/* 🌟 1. โหมดหน้าเว็บแท็บปกติ (มีระบบ Scrollbar ตามธรรมชาติของเนื้อหา) */}
-                        {!isFixedTab && (
-                          <div className="min-h-full flex flex-col bg-white">
-                            {activeTab === 'manual'       && renderManual()}
-                            {activeTab === 'archive'      && renderArchive()}
-                            {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
-                            {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
-                            {activeTab === 'legal_search' && <LegalSearchView />}
-                            {activeTab === 'favorites'    && (
-                              <FavoritesView
-                                bookmarks={bookmarks}
-                                onNavigate={item => { handleGlobalNavigate(item); }}
-                                onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
-                              />
-                            )}
-                          </div>
-                        )}
-
-                        {/* 🌟 2. โหมด Iframe แท็บกฤษฎีกา/ศาลฎีกา (ตรึง Iframe ให้เต็มกล่อง <main> โดยไม่มี Scrollbar มากวน) */}
-                        {isFixedTab && (
-                          <div className="absolute top-0 left-0 right-0 bottom-[72px] md:bottom-0 flex flex-col z-0">
-                             {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
-                             {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </main>
-                </div>
+            {loadError && (
+              <div className="bg-rose-50 text-rose-600 p-3 text-center text-sm z-20 border-b border-rose-200 flex items-center justify-center gap-2 shrink-0">
+                <AlertCircle size={16} /><span>โหลดข้อมูลบางส่วนล้มเหลว</span>
+                <button onClick={() => loadDataFromSheets(sheetUrls)} className="underline font-bold ml-1">ลองใหม่</button>
               </div>
+            )}
+            
+            {isLoading ? (
+              <LoadingScreen sources={loadSources} />
+            ) : (
+              <>
+                {/* กลุ่มหน้าจอแบบ Scroll อิสระ */}
+                {!isFixedTab && (
+                  <div className="w-full flex flex-col">
+                    {activeTab === 'manual'       && renderManual()}
+                    {activeTab === 'archive'      && renderArchive()}
+                    {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
+                    {activeTab === 'legal_search' && <LegalSearchView />}
+                    {activeTab === 'favorites'    && <FavoritesView bookmarks={bookmarks} onNavigate={item => { handleGlobalNavigate(item); }} onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }} />}
+                  </div>
+                )}
 
-              {adminOpen && (
-                <AdminModal
-                  rawData={{ manual: rawManualRows, decision: rawDecisionRows, archive: rawArchiveRows, chatbot: rawChatbotRows }}
-                  onReloadData={() => { loadDataFromSheets(sheetUrls, true); }}
-                  sheetUrls={sheetUrls}
-                  onUpdateUrls={handleUpdateUrls}
-                  onClose={() => setAdminOpen(false)}
-                />
-              )}
-            </div>
-            </VisitedCtx.Provider>
-            </BookmarkCtx.Provider>
-            </ErrorBoundary>
-          );
-        }
+                {/* กลุ่มหน้าจอแบบล็อกเต็มจอ (Iframe และ Chatbot) */}
+                {isFixedTab && (
+                  <div className="absolute inset-0 w-full h-full">
+                    {activeTab === 'chatbot'       && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
+                    {activeTab === 'ocs_comment'   && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
+                    {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+        </div>
+      </div>
 
-        const rootElement = document.getElementById('root');
-        const root = createRoot(rootElement);
-        root.render(<App />);
+      {adminOpen && (
+        <AdminModal rawData={{ manual: rawManualRows, decision: rawDecisionRows, archive: rawArchiveRows, chatbot: rawChatbotRows }} onReloadData={() => { loadDataFromSheets(sheetUrls, true); }} sheetUrls={sheetUrls} onUpdateUrls={handleUpdateUrls} onClose={() => setAdminOpen(false)} />
+      )}
+    </div>
+    </VisitedCtx.Provider>
+    </BookmarkCtx.Provider>
+    </ErrorBoundary>
+  );
+}
+
+const rootElement = document.getElementById('root');
+const root = createRoot(rootElement);
+root.render(<App />);
     </script>
 
     <!-- PWA Install Prompt Listener & Service Worker Registration -->
