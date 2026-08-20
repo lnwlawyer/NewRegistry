@@ -22,9 +22,16 @@
         body { 
             font-family: 'Sarabun', sans-serif; 
             -webkit-tap-highlight-color: transparent;
+            /* ป้องกันการเด้ง (Rubber banding) บนมือถือ */
+            overscroll-behavior-y: none;
         }
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* รองรับพื้นที่ปลอดภัยสำหรับมือถือรุ่นใหม่ (Notch) */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        }
     </style>
 
     <!-- Import Maps สำหรับเรียกใช้ React และ Lucide-React -->
@@ -42,7 +49,7 @@
     <!-- Babel สำหรับแปลง JSX ใน Browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased">
+<body class="bg-slate-100 text-slate-800 antialiased overflow-hidden">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
@@ -59,7 +66,7 @@
         } from 'lucide-react';
 
         // ==========================================
-        // 0. Error Boundary
+        // 0. Error Boundary — ป้องกัน crash ทั้งแอพ
         // ==========================================
         class ErrorBoundary extends React.Component {
           constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -197,7 +204,7 @@
           const q = query.trim();
 
           const ResultCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; const Icon = meta.Icon; return ( <button onClick={() => handleSelect(item)} className={`w-full text-left px-4 py-3 rounded-xl border ${meta.border} ${meta.bg} hover:brightness-95 active:scale-[0.99] transition-all flex items-start gap-3 group`}> <div className={`mt-0.5 p-1.5 rounded-lg bg-white border ${meta.border} shrink-0`}> <Icon size={14} className={meta.text} /> </div> <div className="flex-1 min-w-0"> <div className="flex items-start justify-between gap-2"> <p className={`font-semibold text-sm leading-snug ${meta.text} truncate`}>{gsHighlight(item.title, q)}</p> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-medium ${meta.badge}`}>{meta.label}</span> </div> {item.path?.length > 1 && ( <div className="flex items-center gap-1 mt-0.5 flex-wrap"> {item.path.slice(0, -1).map((p, i) => ( <React.Fragment key={i}> <span className="text-[11px] text-slate-400 truncate max-w-[100px]">{p}</span> {i < item.path.length - 2 && <ChevronRight size={10} className="text-slate-300 shrink-0" />} </React.Fragment> ))} </div> )} {item.snippet && ( <p className="text-[12px] text-slate-500 mt-1 line-clamp-2 leading-relaxed"> {gsHighlight(item.snippet.slice(0, 120), q)}{item.snippet.length > 120 && '...'} </p> )} </div> {item.url && <ArrowUpRight size={14} className="text-slate-400 shrink-0 mt-1 group-hover:text-slate-600" />} </button> ); };
-          const HistoryCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; return ( <button onClick={() => handleSelect(item)} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-3"> <Clock size={14} className="text-slate-400" /> <div className="flex-1 min-w-0"> <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p> {item.path?.length > 0 && <p className="text-[11px] text-slate-400 truncate">{item.path.join(' › ')}</p>} </div> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${meta.badge}`}>{meta.label}</span> </button> ); };
+          const HistoryCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; return ( <button onClick={() => handleSelect(item)} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-3"> <Clock size={14} className="text-slate-400 shrink-0" /> <div className="flex-1 min-w-0"> <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p> {item.path?.length > 0 && <p className="text-[11px] text-slate-400 truncate">{item.path.join(' › ')}</p>} </div> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${meta.badge}`}>{meta.label}</span> </button> ); };
 
           return (
             <>
@@ -231,11 +238,11 @@
         const BookmarkCtx = React.createContext({ toggle: () => {}, isBookmarked: () => false });
         const ListItem = ({ title, icon: Icon, emoji, imageUrl, onClick, bookmarkItem }) => { const { toggle, isBookmarked } = React.useContext(BookmarkCtx); const starred = bookmarkItem ? isBookmarked(bookmarkItem.id) : false; return ( <div className="relative group"> <button onClick={onClick} className="w-full min-h-[56px] flex items-center justify-between bg-[#F0FAF5] px-4 py-3 md:py-4 rounded-2xl border border-teal-100/50 hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] text-left pr-12"> <div className="flex items-center gap-4"> <IconDisplay imageUrl={imageUrl} emoji={emoji} defaultIcon={Icon} /> <span className="font-bold text-[#006655] text-[15px] md:text-base leading-tight break-words">{String(title || '(ไม่มีชื่อ)')}</span> </div> <ChevronRight className="text-slate-400 shrink-0 ml-2" size={22} /> </button> {bookmarkItem && ( <button onClick={e => { e.stopPropagation(); toggle(bookmarkItem); }} className={`absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${starred ? 'text-amber-400 bg-amber-50' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-50'}`} aria-label={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} title={starred ? 'ยกเลิก bookmark' : 'บันทึก bookmark'} > <Star size={16} fill={starred ? 'currentColor' : 'none'} /> </button> )} </div> ); };
         const VisitedCtx = React.createContext({ markVisited: () => {}, isVisited: () => false });
-
+        
         const ContentSection = ({ title, icon: Icon, emoji, entries }) => { 
           const { markVisited, isVisited } = React.useContext(VisitedCtx); 
           return ( 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col"> 
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col"> 
               <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold shrink-0"> 
                 {emoji ? <span className="text-xl">{emoji}</span> : <Icon size={18} />} 
                 <h2>{String(title || '')}</h2> 
@@ -285,7 +292,6 @@
         const AdminModal = ({ rawData, onReloadData, sheetUrls, onUpdateUrls, onClose }) => {
           const [activeSection, setActiveSection] = useState('urls'); const [editedUrls, setEditedUrls] = useState({ ...sheetUrls }); const [savedFeedback, setSavedFeedback] = useState(''); const [expandedTable, setExpandedTable] = useState(null); const [tableSearch, setTableSearch] = useState(''); const [analyticsData] = useState(() => analyticsLoad());
           
-          // ระบบติดตั้ง PWA
           const [deferredPrompt, setDeferredPrompt] = useState(window.pwaDeferredPrompt);
           useEffect(() => { const handler = (e) => setDeferredPrompt(e.detail); window.addEventListener('pwa-prompt-available', handler); return () => window.removeEventListener('pwa-prompt-available', handler); }, []);
           const handleInstall = async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') { setDeferredPrompt(null); window.pwaDeferredPrompt = null; } } else { alert('อุปกรณ์หรือเบราว์เซอร์ของคุณอาจไม่รองรับการติดตั้งแอปผ่านปุ่มนี้ หรือคุณได้ติดตั้งแอปนี้ไปแล้ว\n\nวิธีติดตั้งด้วยตัวเอง:\niOS: กดปุ่มแชร์ (Share) -> เพิ่มไปยังหน้าจอโฮม (Add to Home Screen)\nAndroid: กดเมนู 3 จุดมุมขวาบน -> เพิ่มลงในหน้าจอหลัก (Install App)'); } };
@@ -382,8 +388,7 @@
           const handleSend = (e) => { e.preventDefault(); if (!input.trim()) return; const userMsg = input.trim(); setMessages(prev => [...prev, { sender: 'user', text: userMsg }]); setInput(''); setTimeout(() => { let bestMatch = null, maxScore = 0; const lowerInput = userMsg.toLowerCase(); chatbotData.filter(d => d.category === selectedCategory).forEach(item => { let score = 0; item.keywords.forEach(kw => { if (lowerInput.includes(kw)) score++; }); if (score > maxScore) { maxScore = score; bestMatch = item.answer; } }); if (!bestMatch && onMiss) onMiss(userMsg, selectedCategory); setMessages(prev => [...prev, { sender: 'bot', text: String(bestMatch || 'ไม่พบข้อมูลที่ตรงกับคำถามของคุณในหมวดหมู่นี้ค่ะ') }]); }, 500); };
 
           return (
-            // แชทบอทยังคงล็อคความสูงไว้เพื่อสร้างกล่องแชท
-            <div className="flex-1 flex flex-col bg-slate-50/50" style={{ height: 'calc(100vh - 136px)' }}>
+            <div className="flex-1 flex flex-col bg-slate-50/50">
               <div className="bg-[#006655] text-white p-4 shadow-md shrink-0"> <div className="flex items-center gap-3 mb-3"> <div className="bg-white/20 p-2 rounded-full"><Bot size={24} /></div> <h2 className="font-bold text-lg">Chatbot ถาม-ตอบ</h2> </div> {categories.length > 0 && ( <select className="w-full bg-[#005544] text-white p-2 rounded-xl text-sm border border-teal-400/30 outline-none" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}> {categories.map(cat => <option key={cat} value={cat}>{String(cat)}</option>)} </select> )} </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4"> {messages.map((msg, idx) => ( <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-[#006655] text-white' : 'bg-white text-slate-800 shadow-sm border border-slate-200'}`}> <div className="whitespace-pre-wrap">{String(msg.text)}</div> </div> </div> ))} <div ref={messagesEndRef} /> </div>
               <form onSubmit={handleSend} className="p-3 bg-white border-t flex gap-2 items-center shrink-0"> <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="พิมพ์ข้อความ..." className="flex-1 bg-slate-100 border rounded-full px-4 py-3 min-h-[44px] outline-none focus:ring-2 focus:ring-[#006655] text-base" /> <button type="submit" className="bg-[#006655] text-white w-11 h-11 flex items-center justify-center rounded-full hover:bg-teal-700 active:scale-95 transition-all shrink-0"><Send size={20} /></button> </form>
@@ -421,14 +426,14 @@
                   <button onClick={executeRequest} disabled={isLoading} className="w-full bg-slate-800 text-white font-bold py-4 px-4 rounded-2xl hover:bg-slate-900 transition-all focus:outline-none focus:ring-4 focus:ring-slate-200 flex justify-center items-center gap-2 shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed" > {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />} {isLoading ? 'กำลังค้นหา...' : 'ค้นหาข้อมูล'} </button>
                 </div>
                 {error && ( <div className="mt-6 p-4 bg-rose-50 text-rose-700 rounded-2xl border border-rose-200 text-sm flex items-start gap-2"> <AlertCircle size={18} className="shrink-0 mt-0.5" /> <div><strong className="font-bold">เกิดข้อผิดพลาด:</strong> {error}</div> </div> )}
-                {results && ( <div className="mt-8 animate-in slide-in-from-bottom-4"> <div className="flex justify-between items-center mb-4"> <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"> <CheckCircle2 className="text-emerald-500" size={24} /> ผลการค้นหา </h3> <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-2 py-1 rounded-lg font-mono"> {endpointLabel} </span> </div> <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl shadow-sm"> {results.length === 0 ? ( <p className="text-slate-500 text-center py-8">ไม่พบข้อมูลที่ตรงกับคำค้นหา</p> ) : ( results.map((item, index) => { const title = item.title || `คำพิพากษาศาลฎีกาที่ ${item.deka_no || '-'}`; const text = item.long_text || item.short_text || 'ไม่มีรายละเอียดข้อความ'; return ( <div key={index} className="mb-6 pb-6 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0"> <h4 className="text-lg font-bold text-[#006655] mb-3 flex items-center flex-wrap gap-2"> {results.length > 1 && <span className="bg-emerald-100 text-emerald-800 w-6 h-6 flex items-center justify-center rounded-full text-xs">{index + 1}</span>} {title} {item.score && <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Score: {item.score.toFixed(2)}</span>} </h4> <p className="text-slate-700 text-sm md:text-base leading-relaxed text-justify whitespace-pre-wrap">{text}</p> </div> ); }) )} </div> <details className="mt-4 text-sm text-slate-500 cursor-pointer group"> <summary className="font-medium group-hover:text-slate-800 transition-colors">ดูข้อมูล JSON ดิบ (สำหรับตรวจสอบ)</summary> <pre className="mt-3 bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-[10px] font-mono shadow-inner"> {JSON.stringify(rawJson, null, 2)} </pre> </details> </div> )}
+                {results && ( <div className="mt-8 animate-in slide-in-from-bottom-4"> <div className="flex justify-between items-center mb-4"> <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"> <CheckCircle2 className="text-emerald-500" size={24} /> ผลการค้นหา </h3> <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-2 py-1 rounded-lg font-mono"> {endpointLabel} </span> </div> <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl overflow-y-auto max-h-[600px] shadow-sm"> {results.length === 0 ? ( <p className="text-slate-500 text-center py-8">ไม่พบข้อมูลที่ตรงกับคำค้นหา</p> ) : ( results.map((item, index) => { const title = item.title || `คำพิพากษาศาลฎีกาที่ ${item.deka_no || '-'}`; const text = item.long_text || item.short_text || 'ไม่มีรายละเอียดข้อความ'; return ( <div key={index} className="mb-6 pb-6 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0"> <h4 className="text-lg font-bold text-[#006655] mb-3 flex items-center flex-wrap gap-2"> {results.length > 1 && <span className="bg-emerald-100 text-emerald-800 w-6 h-6 flex items-center justify-center rounded-full text-xs">{index + 1}</span>} {title} {item.score && <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Score: {item.score.toFixed(2)}</span>} </h4> <p className="text-slate-700 text-sm md:text-base leading-relaxed text-justify whitespace-pre-wrap">{text}</p> </div> ); }) )} </div> <details className="mt-4 text-sm text-slate-500 cursor-pointer group"> <summary className="font-medium group-hover:text-slate-800 transition-colors">ดูข้อมูล JSON ดิบ (สำหรับตรวจสอบ)</summary> <pre className="mt-3 bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-[10px] font-mono shadow-inner"> {JSON.stringify(rawJson, null, 2)} </pre> </details> </div> )}
               </div>
             </div>
           );
         };
 
         // ==========================================
-        // 🌟 Web Embed View (คุมการทำงานแบบเก่า - Absolute)
+        // 🌟 Web Embed View (โหลดเต็มจอสำหรับ Iframe)
         // ==========================================
         const WebEmbedView = ({ url, title, icon: Icon = Globe, theme = 'purple' }) => {
           const [isLoading, setIsLoading] = useState(true);
@@ -441,23 +446,11 @@
           const t = THEMES[theme] || THEMES.purple;
 
           return (
-            // เปลี่ยนโครงสร้างให้บังคับอยู่ในกรอบของตัวเอง
-            <div className="absolute top-0 left-0 right-0 bottom-[72px] md:bottom-0 animate-in fade-in bg-slate-50 z-0">
-              {isLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-10 backdrop-blur-sm">
-                  <Loader2 className={`animate-spin ${t.spinner} mb-3`} size={36} />
-                  <p className="text-sm text-slate-500 font-medium bg-white px-4 py-1.5 rounded-full shadow-sm">
-                    กำลังโหลดหน้าเว็บ...
-                  </p>
-                </div>
-              )}
-              <iframe
-                src={url}
-                className="absolute inset-0 w-full h-full border-none bg-white"
-                title={title}
-                onLoad={() => setIsLoading(false)}
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-              />
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-10 backdrop-blur-sm">
+              <Loader2 className={`animate-spin ${t.spinner} mb-3`} size={36} />
+              <p className="text-sm text-slate-500 font-medium bg-white px-4 py-1.5 rounded-full shadow-sm">
+                กำลังโหลดหน้าเว็บ...
+              </p>
             </div>
           );
         };
@@ -503,7 +496,7 @@
         };
 
         const BottomNav = ({ activeTab, onSelect, bookmarkCount }) => (
-          <nav className="fixed md:static bottom-0 w-full md:w-24 lg:w-28 bg-white md:bg-slate-50/80 border-t md:border-t-0 md:border-r border-slate-200 flex md:flex-col justify-around md:justify-start items-stretch h-[72px] md:h-full md:pt-6 md:pb-8 z-40 order-2 md:order-1 shadow-[0_-4px_12px_rgba(0,0,0,0.07)] md:shadow-none overflow-x-auto scrollbar-none">
+          <nav className="absolute md:relative bottom-0 w-full md:w-24 lg:w-28 bg-white md:bg-slate-50/80 border-t md:border-t-0 md:border-r border-slate-200 flex md:flex-col justify-around md:justify-start items-stretch h-[72px] md:h-full md:pt-6 md:pb-8 z-40 order-2 md:order-1 shadow-[0_-4px_12px_rgba(0,0,0,0.07)] md:shadow-none overflow-x-auto scrollbar-none">
             {NAV_ITEMS.map(({ id, label, Icon, color }) => {
               const isActive = activeTab === id; const c = NAV_COLOR_MAP[color]; const showBadge = id === 'favorites' && bookmarkCount > 0;
               return (
@@ -668,7 +661,7 @@
             if (activeTab === 'archive') {
               const items = [{ label: 'คลัง', onClick: () => { setViewState({ level: 'archiveMain', mainId: null, subId: null, topicId: null }); setSearchQuery(''); } }];
               if (['archiveSub1','archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcMain) items.push({ label: currentArcMain.title, onClick: () => { setViewState({ level: 'archiveSub1', mainId: viewState.mainId, subId: null, topicId: null }); setSearchQuery(''); } }); }
-      if (['archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcSub1?.title) items.push({ label: currentArcSub1.title, onClick: () => { setViewState({ level: 'archiveSub2', mainId: viewState.mainId, subId: viewState.subId, topicId: null }); setSearchQuery(''); } }); }
+              if (['archiveSub2','archiveContent'].includes(viewState.level)) { if (currentArcSub1?.title) items.push({ label: currentArcSub1.title, onClick: () => { setViewState({ level: 'archiveSub2', mainId: viewState.mainId, subId: viewState.subId, topicId: null }); setSearchQuery(''); } }); }
               if (viewState.level === 'archiveContent') { if (currentArcSub2?.title) items.push({ label: currentArcSub2.title }); }
               return items.length > 1 ? items : [];
             }
@@ -687,7 +680,7 @@
             if (viewState.level === 'archiveMain') { const filtered = archiveDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่คลังเอกสาร..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={Library} emoji={mainItem.emoji} imageUrl={mainItem.imageUrl} onClick={() => { const main = archiveDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const s1 = main.subCategories[0]; if (s1.topics.length === 1 && s1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', mainId: main.id, subId: s1.id, topicId: s1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', mainId: main.id, subId: s1.id, topicId: null }); } else setViewState({ ...viewState, level: 'archiveSub1', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
             if (viewState.level === 'archiveSub1') { const filtered = (currentArcMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay emoji={currentArcMain?.emoji} imageUrl={currentArcMain?.imageUrl} defaultIcon={Library} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">คลังเอกสาร</div><div className="font-bold text-lg">{String(currentArcMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={Layers} imageUrl={subItem.imageUrl} onClick={() => { const sub1 = currentArcMain.subCategories.find(s => s.id === subItem.id); if (sub1?.topics.length === 1 && sub1.topics[0].title === '') setViewState({ ...viewState, level: 'archiveContent', subId: sub1.id, topicId: sub1.topics[0].id }); else setViewState({ ...viewState, level: 'archiveSub2', subId: subItem.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
             if (viewState.level === 'archiveSub2') { const filtered = (currentArcSub1?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentArcSub1?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay defaultIcon={Layers} imageUrl={currentArcSub1?.imageUrl} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentArcMain?.title || '')}</div><div className="font-bold text-lg">{String(currentArcSub1?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} imageUrl={topic.imageUrl} icon={FileText} onClick={() => { setViewState({ ...viewState, level: 'archiveContent', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
-            if (viewState.level === 'archiveContent') { const docs = currentArcSub2?.documents || []; const filtered = docs.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="animate-in slide-in-from-right-4 flex flex-col"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0"> <h2 className="text-xl md:text-2xl font-bold">{String(currentArcSub2?.title || currentArcSub1?.title || currentArcMain?.title || '')}</h2> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50"> <SearchBar placeholder="ค้นหาไฟล์เอกสาร..." /> <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"> <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold"> <FileDown size={18} /><h2>รายการเอกสาร ({filtered.length})</h2> </div> <div className="p-4 flex flex-col gap-3"> {filtered.length === 0 ? <span className="text-slate-400 italic text-center py-4">ไม่พบไฟล์</span> : filtered.map((doc, idx) => { const seen = visitedCtxVal.isVisited(doc.url); return ( <a key={idx} href={doc.url} target="_blank" rel="noopener noreferrer" onClick={() => visitedCtxVal.markVisited(doc.url)} className={`flex items-center justify-between px-4 py-3.5 min-h-[56px] rounded-xl border transition-colors group ${seen ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-slate-50 border-slate-200 hover:bg-teal-50 active:bg-teal-100'}`}> <div className="flex items-center gap-3"> <div className={`p-2 rounded-lg border shrink-0 ${seen ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}> <FileDown size={18} className={seen ? 'text-slate-400' : 'text-rose-500'} /> </div> <span className={`font-medium break-words max-w-[200px] md:max-w-md group-hover:text-[#006655] ${seen ? 'text-slate-400' : 'text-slate-700'}`}>{String(doc.title)}</span> {seen && <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">ดูแล้ว</span>} </div> <FileDown size={20} className={`shrink-0 ml-2 ${seen ? 'text-slate-300' : 'text-rose-400'}`} /> </a> ); }) } </div> </div> </div> </div> ); }
+            if (viewState.level === 'archiveContent') { const docs = currentArcSub2?.documents || []; const filtered = docs.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="animate-in slide-in-from-right-4 pb-8 h-full flex flex-col"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0"> <h2 className="text-xl md:text-2xl font-bold">{String(currentArcSub2?.title || currentArcSub1?.title || currentArcMain?.title || '')}</h2> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50"> <SearchBar placeholder="ค้นหาไฟล์เอกสาร..." /> <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"> <div className="bg-[#F0FAF5] px-4 py-3 border-b border-teal-100/50 flex items-center gap-2 text-[#006655] font-bold"> <FileDown size={18} /><h2>รายการเอกสาร ({filtered.length})</h2> </div> <div className="p-4 flex flex-col gap-3"> {filtered.length === 0 ? <span className="text-slate-400 italic text-center py-4">ไม่พบไฟล์</span> : filtered.map((doc, idx) => { const seen = visitedCtxVal.isVisited(doc.url); return ( <a key={idx} href={doc.url} target="_blank" rel="noopener noreferrer" onClick={() => visitedCtxVal.markVisited(doc.url)} className={`flex items-center justify-between px-4 py-3.5 min-h-[56px] rounded-xl border transition-colors group ${seen ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-slate-50 border-slate-200 hover:bg-teal-50 active:bg-teal-100'}`}> <div className="flex items-center gap-3"> <div className={`p-2 rounded-lg border shrink-0 ${seen ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}> <FileDown size={18} className={seen ? 'text-slate-400' : 'text-rose-500'} /> </div> <span className={`font-medium break-words max-w-[200px] md:max-w-md group-hover:text-[#006655] ${seen ? 'text-slate-400' : 'text-slate-700'}`}>{String(doc.title)}</span> {seen && <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">ดูแล้ว</span>} </div> <FileDown size={20} className={`shrink-0 ml-2 ${seen ? 'text-slate-300' : 'text-rose-400'}`} /> </a> ); }) } </div> </div> </div> </div> ); }
           };
 
           const renderManual = () => { 
@@ -695,29 +688,24 @@
             if (viewState.level === 'main') { const filtered = manualDatabase.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in fade-in"> <SearchBar placeholder="ค้นหาหมวดหมู่งานทะเบียน..." /> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(mainItem => ( <ListItem key={mainItem.id} title={mainItem.title} icon={BookOpen} emoji={getEmojiForTitle(mainItem.title)} imageUrl={mainItem.iconUrl} bookmarkItem={{ id: `manual-${mainItem.id}`, tab: 'manual', title: mainItem.title, path: [mainItem.title], ids: { mainId: mainItem.id, level: 'sub' } }} onClick={() => { const main = manualDatabase.find(m => m.id === mainItem.id); if (main?.subCategories.length === 1 && main.subCategories[0].title === '') { const sub = main.subCategories[0]; if (sub.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', mainId: main.id, subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', mainId: main.id, subId: sub.id, topicId: null }); } else setViewState({ ...viewState, level: 'sub', mainId: mainItem.id, subId: null, topicId: null }); setSearchQuery(''); }} /> ))} </div> </div> ); }
             if (viewState.level === 'sub') { const filtered = (currentMain?.subCategories || []).filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentMain?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentMain?.iconUrl} emoji={getEmojiForTitle(currentMain?.title)} defaultIcon={BookOpen} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">หมวดหมู่หลัก</div><div className="font-bold text-lg">{String(currentMain?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(subItem => ( <ListItem key={subItem.id} title={subItem.title} icon={FileText} emoji={getEmojiForTitle(subItem.title)} imageUrl={subItem.iconUrl} onClick={() => { const sub = currentMain.subCategories.find(s => s.id === subItem.id); if (sub?.topics.length === 1 && sub.topics[0].title === '') setViewState({ ...viewState, level: 'detail', subId: sub.id, topicId: sub.topics[0].id }); else setViewState({ ...viewState, level: 'topics', subId: sub.id }); setSearchQuery(''); }} /> ))} </div> </div> ); }
             if (viewState.level === 'topics') { const filtered = (currentSub?.topics || []).filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())); return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <SearchBar placeholder={`ค้นหาใน ${String(currentSub?.title || '')}...`} /> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentSub?.iconUrl} emoji={getEmojiForTitle(currentSub?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentSub?.title || 'รายการทั้งหมด')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {filtered.map(topic => <ListItem key={topic.id} title={topic.title} icon={FileText} emoji={getEmojiForTitle(topic.title)} imageUrl={topic.iconUrl} bookmarkItem={{ id: `manual-topic-${topic.id}`, tab: 'manual', title: topic.title, path: [currentMain?.title, currentSub?.title, topic.title], ids: { mainId: viewState.mainId, subId: viewState.subId, topicId: topic.id, level: 'detail' } }} onClick={() => { setViewState({ ...viewState, level: 'detail', topicId: topic.id }); setSearchQuery(''); }} />)} </div> </div> ); }
-            if (viewState.level === 'detail') { const sectionConfigs = [ { key: 'meaning', title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, { key: 'summary', title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, { key: 'laws', title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, { key: 'courtRulings', title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, { key: 'councilRulings', title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, { key: 'deptRulings', title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, { key: 'qna', title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion,emoji:"❓" }, { key: 'handbooks', title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } ]; return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4"> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentSub?.title || currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentTopic?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {sectionConfigs.map(cfg => { const hasContent = currentTopic?.content[cfg.key]?.length > 0; if (!hasContent) return null; return <ListItem key={cfg.key} title={cfg.title} icon={cfg.icon} emoji={cfg.emoji} onClick={() => setViewState({ ...viewState, level: 'content', sectionKey: cfg.key })} />; })} </div> </div> ); }
-            if (viewState.level === 'content') { const sectionKey = viewState.sectionKey; const sectionConfig = { meaning: { title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, summary: { title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, laws: { title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, courtRulings: { title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, councilRulings: { title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, deptRulings: { title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, qna: { title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion, emoji: "❓" }, handbooks: { title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } }; const activeConfig = sectionConfig[sectionKey]; const activeContent = currentTopic?.content[sectionKey]; return ( <div className="animate-in slide-in-from-right-4 flex flex-col print:block"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0 print:bg-white print:text-[#006655] print:shadow-none print:border-b print:border-teal-200"> <div className="flex items-start justify-between gap-3"> <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-10 h-10" iconSize={20} textClass="text-xl" /> {String(currentTopic?.title || '')} </h2> <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 print:hidden"> <Printer size={16} /><span className="hidden sm:inline">พิมพ์</span> </button> </div> <div className="mt-2 text-teal-200 print:text-teal-700 text-sm flex gap-2 items-center"><ChevronRight size={14} /><span>{String(activeConfig?.title || '')}</span></div> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50 print:bg-white print:p-0 print:pt-4"> <ContentSection title={activeConfig?.title || ''} icon={activeConfig?.icon || FileText} emoji={activeConfig?.emoji} entries={activeContent} /> </div> </div> ); }
+            if (viewState.level === 'detail') { const sectionConfigs = [ { key: 'meaning', title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, { key: 'summary', title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, { key: 'laws', title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, { key: 'courtRulings', title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, { key: 'councilRulings', title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, { key: 'deptRulings', title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, { key: 'qna', title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion,emoji:"❓" }, { key: 'handbooks', title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } ]; return ( <div className="p-4 md:p-6 animate-in slide-in-from-right-4 pb-8"> <div className="bg-[#006655] text-white p-4 rounded-2xl mb-6 shadow-sm flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-12 h-12" iconSize={24} /> <div><div className="text-teal-100 text-xs">{String(currentSub?.title || currentMain?.title || '')}</div><div className="font-bold text-lg">{String(currentTopic?.title || '')}</div></div> </div> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {sectionConfigs.map(cfg => { const hasContent = currentTopic?.content[cfg.key]?.length > 0; if (!hasContent) return null; return <ListItem key={cfg.key} title={cfg.title} icon={cfg.icon} emoji={cfg.emoji} onClick={() => setViewState({ ...viewState, level: 'content', sectionKey: cfg.key })} />; })} </div> </div> ); }
+            if (viewState.level === 'content') { const sectionKey = viewState.sectionKey; const sectionConfig = { meaning: { title: "ความหมาย/สาระสำคัญ", icon: BookOpen, emoji: "📖" }, summary: { title: "ขั้นตอนดำเนินการ/แนวทางปฏิบัติ", icon: Info, emoji: "🛠️" }, laws: { title: "กฎหมายที่เกี่ยวข้อง", icon: Scale, emoji: "⚖️" }, courtRulings: { title: "แนวคำพิพากษาศาล", icon: Gavel, emoji: "🏛️" }, councilRulings: { title: "คำวินิจฉัยกฤษฎีกา", icon: Landmark, emoji: "📜" }, deptRulings: { title: "แนวคำวินิจฉัยกรมที่ดิน", icon: FileText, emoji: "💡" }, qna: { title: "คำถาม-คำตอบ ที่สำคัญ", icon: FileQuestion, emoji: "❓" }, handbooks: { title: "หนังสือคู่มือ", icon: BookMarked, emoji: "📚" } }; const activeConfig = sectionConfig[sectionKey]; const activeContent = currentTopic?.content[sectionKey]; return ( <div className="animate-in slide-in-from-right-4 pb-8 h-full flex flex-col print:block"> <div className="bg-[#006655] text-white p-6 md:px-8 shadow-md shrink-0 print:bg-white print:text-[#006655] print:shadow-none print:border-b print:border-teal-200"> <div className="flex items-start justify-between gap-3"> <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3"> <IconDisplay imageUrl={currentTopic?.iconUrl} emoji={getEmojiForTitle(currentTopic?.title)} defaultIcon={FileText} sizeClass="w-10 h-10" iconSize={20} textClass="text-xl" /> {String(currentTopic?.title || '')} </h2> <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 print:hidden"> <Printer size={16} /><span className="hidden sm:inline">พิมพ์</span> </button> </div> <div className="mt-2 text-teal-200 print:text-teal-700 text-sm flex gap-2 items-center"><ChevronRight size={14} /><span>{String(activeConfig?.title || '')}</span></div> </div> <div className="p-4 md:p-8 flex-1 bg-slate-50/50 print:bg-white print:p-0 print:pt-4"> <ContentSection title={activeConfig?.title || ''} icon={activeConfig?.icon || FileText} emoji={activeConfig?.emoji} entries={activeContent} /> </div> </div> ); }
           };
+
+          const isFixedTab = ['ocs_comment', 'supreme_court', 'chatbot'].includes(activeTab);
 
           return (
             <ErrorBoundary>
             <BookmarkCtx.Provider value={bookmarkCtxVal}>
             <VisitedCtx.Provider value={visitedCtxVal}>
-            <div lang="th" className="bg-slate-100 font-sans md:p-4 lg:p-8 flex justify-center items-start">
-              {/* โครงสร้างหลัก (แยกการแสดงผล 2 รูปแบบ) */}
-              <div 
-                className={`w-full max-w-2xl md:max-w-5xl lg:max-w-7xl bg-white shadow-xl relative flex flex-col md:flex-row border border-slate-200 ${
-                  // ถ้าเป็นหน้ากฤษฎีกาหรือศาลฎีกา ให้ใช้ความสูงแบบบังคับ (h-screen)
-                  (activeTab === 'ocs_comment' || activeTab === 'supreme_court') ? 'h-[100dvh]' : 'min-h-[100dvh]'
-                }`}
-              >
+            {/* 🌟 1. App Shell Architecture: ล็อก 4 มุมจอให้ติดขอบเสมอ เหมือนแอปมือถือ */}
+            <div lang="th" className="fixed inset-0 bg-slate-100 font-sans flex justify-center md:items-center md:p-4 lg:p-8">
+              <div className="w-full h-full max-w-2xl md:max-w-5xl lg:max-w-7xl md:h-[90vh] bg-white md:rounded-3xl shadow-2xl relative flex flex-col md:flex-row overflow-hidden border border-slate-200">
 
                 <BottomNav activeTab={activeTab} onSelect={handleNavSelect} bookmarkCount={bookmarks.length} />
 
-                <div className={`flex-1 flex flex-col order-1 md:order-2 relative ${
-                  // ถ้าเป็นหน้ากฤษฎีกาหรือศาลฎีกา ต้องซ่อนสิ่งที่ล้นออกไป (overflow-hidden) 
-                  (activeTab === 'ocs_comment' || activeTab === 'supreme_court') ? 'overflow-hidden' : 'pb-[72px] md:pb-0'
-                }`}>
+                {/* 🌟 2. โซนพื้นที่การทำงานหลัก */}
+                <div className="flex-1 flex flex-col order-1 md:order-2 h-full overflow-hidden relative">
                   <Header
                     title={getHeaderTitle()}
                     onBack={handleGoBack}
@@ -738,11 +726,9 @@
                     }
                   />
 
-                  {/* โซนเนื้อหา */}
-                  <main className={`bg-white relative ${
-                    // ถ้าเป็นหน้าเว็บ iframe ให้ยืดเต็มที่ (flex-1)
-                    (activeTab === 'ocs_comment' || activeTab === 'supreme_court') ? 'flex-1' : ''
-                  }`}>
+                  {/* 🌟 3. หัวใจสำคัญ: เลือกว่าจะให้ Scroll ได้ หรือ ล็อกความสูงพอดีเมนู */}
+                  <main className={`flex-1 relative scroll-smooth ${!isFixedTab ? 'overflow-y-auto bg-slate-50' : 'overflow-hidden bg-slate-50'}`}>
+                    
                     {newDataNotice && (
                       <div className="bg-teal-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm animate-in slide-in-from-top-2 z-10 relative">
                         <div className="flex items-center gap-2">
@@ -764,27 +750,30 @@
                       <LoadingScreen sources={loadSources} />
                     ) : (
                       <>
-                        {activeTab === 'manual'       && renderManual()}
-                        {activeTab === 'archive'      && renderArchive()}
-                        {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
-                        {activeTab === 'chatbot'      && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
-                        {activeTab === 'legal_search' && <LegalSearchView />}
-                        
-                        {/* 🌟 2 เมนูนี้จะใช้โครงสร้าง WebEmbedView แบบดั้งเดิมเป๊ะๆ 🌟 */}
-                        {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
-                        {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
-                        
-                        {activeTab === 'favorites'    && (
-                          <FavoritesView
-                            bookmarks={bookmarks}
-                            onNavigate={item => { handleGlobalNavigate(item); }}
-                            onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
-                          />
+                        {/* 🌟 4. โหมดหน้าเว็บแท็บปกติ (มีระยะดันท้าย 90px หนีแถบเมนู) */}
+                        {!isFixedTab && (
+                          <div className="min-h-full pb-[90px] md:pb-8 flex flex-col bg-white">
+                            {activeTab === 'manual'       && renderManual()}
+                            {activeTab === 'archive'      && renderArchive()}
+                            {activeTab === 'decision'     && <DecisionSupportView key={decisionResetKey} decisionRules={decisionRules} />}
+                            {activeTab === 'legal_search' && <LegalSearchView />}
+                            {activeTab === 'favorites'    && (
+                              <FavoritesView
+                                bookmarks={bookmarks}
+                                onNavigate={item => { handleGlobalNavigate(item); }}
+                                onRemove={next => { bookmarkSave(next); window.dispatchEvent(new Event('app_bookmark_update')); }}
+                              />
+                            )}
+                          </div>
                         )}
-                        
-                        {/* 🌟 Spacer ดันเนื้อหาสำหรับเมนูที่เลื่อนลงมาด้านล่าง */}
-                        {!(activeTab === 'ocs_comment' || activeTab === 'supreme_court' || activeTab === 'chatbot') && (
-                          <div className="h-[20px] w-full shrink-0 pointer-events-none" />
+
+                        {/* 🌟 5. โหมดหน้าเว็บ Iframe & Chatbot (ตรึงเต็มพื้นที่ ไม่เกินเมนูด้านล่าง) */}
+                        {isFixedTab && (
+                          <div className="absolute top-0 left-0 right-0 bottom-[72px] md:bottom-0 flex flex-col z-0">
+                             {activeTab === 'chatbot' && <ChatbotView chatbotData={chatbotData} onMiss={trackChatbotMiss} />}
+                             {activeTab === 'ocs_comment'  && <WebEmbedView url="https://comment.ocs.go.th" title="ระบบสืบค้นเรื่องเสร็จ คณะกรรมการกฤษฎีกา" icon={Globe} theme="purple" />} 
+                             {activeTab === 'supreme_court' && <WebEmbedView url="https://deka.supremecourt.or.th/" title="ระบบสืบค้นคำพิพากษาศาลฎีกา" icon={Gavel} theme="rose" />}
+                          </div>
                         )}
                       </>
                     )}
