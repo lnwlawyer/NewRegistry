@@ -384,7 +384,8 @@
           const [messages, setMessages] = useState([{ sender: 'bot', text: 'สวัสดีครับ ผมคือผู้ช่วย AI ด้านงานทะเบียนที่ดิน มีอะไรให้ผมช่วยไหมครับ?' }]); 
           const [input, setInput] = useState(''); 
           const [isLoading, setIsLoading] = useState(false);
-          const [aiModel, setAiModel] = useState('gemini-3.5-flash-lite');
+          const [aiModel, setAiModel] = useState('gemini-1.5-flash');
+          const [modelsList, setModelsList] = useState([]); // เพิ่ม State สำหรับเก็บรายชื่อโมเดล
           const messagesEndRef = useRef(null);
 
           // ตรวจสอบและโหลด API Key จาก localStorage เมื่อเริ่มคอมโพเนนต์
@@ -392,6 +393,40 @@
             const savedKey = localStorage.getItem('gemini_api_key'); 
             if (savedKey) { setApiKey(savedKey); setHasSavedKey(true); } 
           }, []);
+
+          // ดึงรายชื่อโมเดลจาก Google API โดยตรงเมื่อมี API Key
+          useEffect(() => {
+            if (!hasSavedKey || !apiKey.trim()) return;
+            
+            const fetchAvailableModels = async () => {
+              try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`);
+                if (!res.ok) throw new Error('Failed to fetch models');
+                const data = await res.json();
+                
+                // คัดกรองเฉพาะโมเดลที่รองรับการแชท/สร้างเนื้อหา (generateContent)
+                const available = data.models
+                  .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                  .map(m => ({
+                    name: m.name.replace('models/', ''), // ตัดคำว่า models/ ออกเพื่อให้ตรงกับที่ API ต้องการ
+                    displayName: m.displayName
+                  }));
+                  
+                setModelsList(available);
+                
+                // ถ้าโมเดลที่เลือกอยู่ (ค่าเริ่มต้น) ไม่มีในรายการที่ดึงมา ให้ตั้งค่าใหม่
+                if (available.length > 0 && !available.some(m => m.name === aiModel)) {
+                   // พยายามเลือกโมเดลตระกูล flash เป็นค่าเริ่มต้น ถ้าไม่มีให้เลือกตัวแรก
+                   const flashModel = available.find(m => m.name.includes('flash'));
+                   setAiModel(flashModel ? flashModel.name : available[0].name);
+                }
+              } catch (err) {
+                console.error("Error fetching models:", err);
+              }
+            };
+            
+            fetchAvailableModels();
+          }, [hasSavedKey, apiKey]);
 
           // เลื่อนหน้าจอแชทลงมาล่างสุดเสมอเมื่อมีข้อความใหม่
           useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -514,11 +549,18 @@
                   <select 
                     value={aiModel} 
                     onChange={e => setAiModel(e.target.value)}
-                    className="bg-[#005544] text-white text-[11px] border border-teal-500 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-300 font-medium"
+                    className="bg-[#005544] text-white text-[11px] border border-teal-500 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-300 font-medium max-w-[160px] truncate"
+                    title="เลือกโมเดล AI"
                   >
-                    <option value="gemini-3.5-flash-lite">3.5 Flash-Lite (เร็วสุด)</option>
-                    <option value="gemini-3.7-flash">3.7 Flash (สมดุล)</option>
-                    <option value="gemini-3.1-pro">3.1 Pro (วิเคราะห์ลึก)</option>
+                    {modelsList.length > 0 ? (
+                      modelsList.map(m => (
+                        <option key={m.name} value={m.name}>
+                          {m.displayName} ({m.name})
+                        </option>
+                      ))
+                    ) : (
+                      <option value={aiModel}>กำลังโหลดรุ่น...</option>
+                    )}
                   </select>
                 )}
               </div>
