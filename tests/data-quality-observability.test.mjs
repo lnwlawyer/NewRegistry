@@ -9,19 +9,17 @@ const manual = [
 const report = inspectDataQuality('manual', manual);
 assert.equal(report.ok, true);
 assert.equal(report.rowCount, 3);
-assert.equal(report.validCount, 1);
-assert.equal(report.rejectedCount, 2);
-assert.equal(report.validRows.length, 1);
+assert.equal(report.validCount, 2);
+assert.equal(report.rejectedCount, 1);
+assert.equal(report.validRows.length, 2);
 assert.deepEqual(report.issues, [
-  { code: 'MISSING_TOPIC_TITLE', count: 1 },
   { code: 'MISSING_MAIN_CATEGORY', count: 1 },
 ]);
 
 const safe = sanitizeDataQualityReport('manual', report);
 assert.deepEqual(safe, {
-  source: 'manual', rowCount: 3, validCount: 1, rejectedCount: 2,
+  source: 'manual', rowCount: 3, validCount: 2, rejectedCount: 1,
   issues: [
-    { code: 'MISSING_TOPIC_TITLE', count: 1 },
     { code: 'MISSING_MAIN_CATEGORY', count: 1 },
   ],
 });
@@ -29,6 +27,13 @@ const serialized = JSON.stringify(safe);
 assert.ok(!serialized.includes('ข้อมูลลับ'));
 assert.ok(!serialized.includes('ข้อความที่ต้องไม่ออก diagnostic'));
 assert.ok(!('validRows' in safe), 'diagnostic must not expose source row content');
+
+// Manual hierarchy rows may intentionally omit TopicTitle; they must survive quality filtering.
+const structuralManual = inspectDataQuality('manual', [
+  { MainCategory: 'การจดทะเบียน', SubCategory: 'ซื้อขาย', TopicTitle: '' },
+]);
+assert.equal(structuralManual.validCount, 1);
+assert.equal(structuralManual.rejectedCount, 0);
 
 const chatbot = inspectDataQuality('chatbot', [
   { Keywords: 'ต่างด้าว', Answer: 'คำตอบ' },
