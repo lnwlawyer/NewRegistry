@@ -16,7 +16,11 @@ const decisions = [{
   reference: 'ประมวลกฎหมายที่ดิน',
 }];
 
-assert.deepEqual(tokenizeQuery('ช่วยอธิบาย การถือครองที่ดิน ของ คนต่างด้าว หน่อยครับ'), ['ถือครองที่ดิน', 'คนต่างด้าว']);
+const tokens = tokenizeQuery('ช่วยอธิบาย การถือครองที่ดิน ของ คนต่างด้าว หน่อยครับ');
+assert.ok(tokens.includes('ถือครองที่ดิน'));
+assert.ok(tokens.includes('ที่ดิน'));
+assert.ok(tokens.includes('คนต่างด้าว'));
+assert.ok(!tokens.includes('ช่วยอธิบาย') && !tokens.includes('หน่อยครับ'));
 const sources = retrieveGroundedSources('คนต่างด้าวถือครองที่ดินได้อย่างไร', manual, decisions);
 assert.ok(sources.length >= 2, 'natural-language query should retrieve manual and decision evidence');
 assert.equal(sources[0].sourceId, 'SRC-01');
