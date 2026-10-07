@@ -36,7 +36,7 @@ const explained = explainSearchMatch(items[1], 'คนต่างด้าว �
 assert.equal(explained[0].field, 'title');
 assert.ok(explained.some(x => x.field === 'title'));
 assert.ok(!explainSearchMatch(items[3], 'คนต่างด้าว').length);
-assert.deepEqual(getSearchHighlightTerms('คนต่างด้าว ถือครองที่ดิน'), ['คนต่างด้าว ถือครองที่ดิน', 'คนต่างด้าว', 'ถือครอง', 'ที่ดิน']);
+assert.deepEqual(getSearchHighlightTerms('คนต่างด้าว ถือครองที่ดิน'), ['คนต่างด้าว ถือครองที่ดิน', 'ถือครองที่ดิน', 'คนต่างด้าว', 'ถือครอง', 'ที่ดิน']);
 
 console.log('Search quality and relevance ranking guard: PASS');
 console.log('Verified Thai normalization/token expansion, weighted ranking, filtering, deterministic ties, and title-list search.');
