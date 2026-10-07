@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createRoot } from 'react-dom/client';
 import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './data-logic.js';
 import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSearch, recordChatbotMiss } from './analytics.js';
+import { assertValidDataRows } from './data-validation.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
@@ -741,13 +742,13 @@ function App() {
     setIsLoading(true); setLoadError(false);
     const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
     setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
-    const fetchCSV = async (cacheKey, url) => { if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return cached; } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const rows = parseCSV(await r.text()); cacheSet(cacheKey, rows); return rows; };
+    const fetchCSV = async (cacheKey, url, schemaKind = cacheKey) => { if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return assertValidDataRows(schemaKind, cached); } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const rows = assertValidDataRows(schemaKind, parseCSV(await r.text())); cacheSet(cacheKey, rows); return rows; };
 
     try {
       updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
       if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('decision', 'error'); }
       if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('archive', 'error'); }
-      if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
+      if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url, 'chatbot'); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
     } catch (err) { if (err.name !== 'AbortError') { console.error(err); setLoadError(true); } } finally { if (!signal.aborted) setIsLoading(false); }
   }, [sheetUrls]);
 
