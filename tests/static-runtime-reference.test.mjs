@@ -28,7 +28,5 @@ for (const component of [...main.matchAll(/<([A-Z][A-Za-z0-9]*)\b/g)].map(match 
   assert.ok(localDeclaration, `JSX component ${component} is used without an import or local declaration`);
 }
 
-assert.doesNotMatch(main, /\bgetEmojiForTitle\s*\(/g && /PLACEHOLDER_NEVER_MATCH/, 'noop');
-
 console.log('Static runtime reference guard: PASS');
 console.log(`Verified ${referencedSharedHelpers.length} shared data helpers and JSX component import/declaration contracts.`);
