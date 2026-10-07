@@ -74,7 +74,6 @@ const getValue = (row, aliases) => {
 const ROW_RULES = {
   manual: [
     { code: 'MISSING_MAIN_CATEGORY', aliases: ['MainCategory', 'หมวดหมู่หลัก'] },
-    { code: 'MISSING_TOPIC_TITLE', aliases: ['TopicTitle', 'ชื่อเรื่อง'] },
   ],
   decision: [
     { code: 'MISSING_REQUEST_TYPE', aliases: ['ประเภทคำขอ', 'RequestType'] },
