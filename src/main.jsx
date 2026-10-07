@@ -3,7 +3,7 @@ import './styles.css';
 import { createRoot } from 'react-dom/client';
 import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './data-logic.js';
 import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSearch, recordChatbotMiss } from './analytics.js';
-import { assertValidDataRows } from './data-validation.js';
+import { assertValidDataRows, inspectDataQuality, sanitizeDataQualityReport } from './data-validation.js';
 import { retrieveGroundedSources, buildGroundingContext, validateCitationIds } from './ai-grounding.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
@@ -726,7 +726,7 @@ function App() {
     setIsLoading(true); setLoadError(false);
     const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
     setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
-    const fetchCSV = async (cacheKey, url, schemaKind = cacheKey) => { if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return assertValidDataRows(schemaKind, cached); } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const rows = assertValidDataRows(schemaKind, parseCSV(await r.text())); cacheSet(cacheKey, rows); return rows; };
+    const fetchCSV = async (cacheKey, url, schemaKind = cacheKey) => { const applyQuality = (rows) => { assertValidDataRows(schemaKind, rows); const report = inspectDataQuality(schemaKind, rows); const safeReport = sanitizeDataQualityReport(cacheKey, report); if (safeReport.rejectedCount > 0) console.warn('DATA_QUALITY', safeReport); return report.validRows; }; if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return applyQuality(cached); } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const parsed = parseCSV(await r.text()); const rows = applyQuality(parsed); cacheSet(cacheKey, rows); return rows; };
 
     try {
       updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
