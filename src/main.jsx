@@ -6,7 +6,7 @@ import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSea
 import { assertValidDataRows, inspectDataQuality, sanitizeDataQualityReport } from './data-validation.js';
 import { retrieveGroundedSources, buildGroundingContext, validateCitationIds } from './ai-grounding.js';
 import { createSourceStates, classifySourceError, sourceErrorMessage, updateSourceState, hasSourceErrors } from './runtime-resilience.js';
-import { rankSearchItems, rankTitleItems } from './search-ranking.js';
+import { rankSearchItems, rankTitleItems, explainSearchMatch, getSearchHighlightTerms } from './search-ranking.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
@@ -101,7 +101,14 @@ const useAnalytics = () => {
 // ==========================================
 // 2. ฟังก์ชันประมวลผลข้อมูล
 // ==========================================
-const gsHighlight = (text, query) => { if (!query || !text) return String(text || ''); const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const parts = String(text).split(new RegExp(`(${escaped})`, 'gi')); return parts.map((part, i) => part.toLowerCase() === query.toLowerCase() ? <mark key={i} className="bg-amber-200 text-amber-900 rounded px-0.5">{part}</mark> : part ); };
+const gsHighlight = (text, query) => {
+  const value = String(text || '');
+  const terms = getSearchHighlightTerms(query);
+  if (!value || terms.length === 0) return value;
+  const escaped = terms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const matcher = new RegExp('(' + escaped.join('|') + ')', 'gi');
+  return value.split(matcher).map((part, i) => terms.some(term => part.toLowerCase() === term.toLowerCase()) ? <mark key={i} className="bg-amber-200 text-amber-900 rounded px-0.5">{part}</mark> : part);
+};
 
 const MODULE_META = {
   manual:       { label: 'คู่มือ',      Icon: BookOpen,      bg: 'bg-teal-50',   text: 'text-teal-700',   border: 'border-teal-200',   badge: 'bg-teal-100 text-teal-700'   },
@@ -143,7 +150,7 @@ const GlobalSearch = ({ manualDatabase = [], archiveDatabase = [], decisionRules
   const showHistory = query.trim().length < 2 && history.length > 0;
   const q = query.trim();
 
-  const ResultCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; const Icon = meta.Icon; return ( <button onClick={() => handleSelect(item)} className={`w-full text-left px-4 py-3 rounded-xl border ${meta.border} ${meta.bg} hover:brightness-95 active:scale-[0.99] transition-all flex items-start gap-3 group`}> <div className={`mt-0.5 p-1.5 rounded-lg bg-white border ${meta.border} shrink-0`}> <Icon size={14} className={meta.text} /> </div> <div className="flex-1 min-w-0"> <div className="flex items-start justify-between gap-2"> <p className={`font-semibold text-sm leading-snug ${meta.text} truncate`}>{gsHighlight(item.title, q)}</p> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-medium ${meta.badge}`}>{meta.label}</span> </div> {item.path?.length > 1 && ( <div className="flex items-center gap-1 mt-0.5 flex-wrap"> {item.path.slice(0, -1).map((p, i) => ( <React.Fragment key={i}> <span className="text-[11px] text-slate-400 truncate max-w-[100px]">{p}</span> {i < item.path.length - 2 && <ChevronRight size={10} className="text-slate-300 shrink-0" />} </React.Fragment> ))} </div> )} {item.snippet && ( <p className="text-[12px] text-slate-500 mt-1 line-clamp-2 leading-relaxed"> {gsHighlight(item.snippet.slice(0, 120), q)}{item.snippet.length > 120 && '...'} </p> )} </div> {item.url && <ArrowUpRight size={14} className="text-slate-400 shrink-0 mt-1 group-hover:text-slate-600" />} </button> ); };
+  const ResultCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; const Icon = meta.Icon; const matches = explainSearchMatch(item, q); return ( <button onClick={() => handleSelect(item)} className={`w-full text-left px-4 py-3 rounded-xl border ${meta.border} ${meta.bg} hover:brightness-95 active:scale-[0.99] transition-all flex items-start gap-3 group`}> <div className={`mt-0.5 p-1.5 rounded-lg bg-white border ${meta.border} shrink-0`}> <Icon size={14} className={meta.text} /> </div> <div className="flex-1 min-w-0"> <div className="flex items-start justify-between gap-2"> <p className={`font-semibold text-sm leading-snug ${meta.text} truncate`}>{gsHighlight(item.title, q)}</p> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-medium ${meta.badge}`}>{meta.label}</span> </div> {matches.length > 0 && ( <div className="flex items-center gap-1 mt-1 flex-wrap" aria-label="เหตุผลที่พบผลลัพธ์"> <span className="text-[10px] text-slate-400">พบจาก</span> {matches.map(match => <span key={match.field} className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/80 border border-slate-200 text-slate-600">{match.label}</span>)} </div> )} {item.path?.length > 1 && ( <div className="flex items-center gap-1 mt-0.5 flex-wrap"> {item.path.slice(0, -1).map((p, i) => ( <React.Fragment key={i}> <span className="text-[11px] text-slate-400 truncate max-w-[100px]">{gsHighlight(p, q)}</span> {i < item.path.length - 2 && <ChevronRight size={10} className="text-slate-300 shrink-0" />} </React.Fragment> ))} </div> )} {item.snippet && ( <p className="text-[12px] text-slate-500 mt-1 line-clamp-2 leading-relaxed"> {gsHighlight(item.snippet.slice(0, 120), q)}{item.snippet.length > 120 && '...'} </p> )} </div> {item.url && <ArrowUpRight size={14} className="text-slate-400 shrink-0 mt-1 group-hover:text-slate-600" />} </button> ); };
   const HistoryCard = ({ item }) => { const meta = MODULE_META[item.tab] || MODULE_META.manual; return ( <button onClick={() => handleSelect(item)} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-3"> <Clock size={14} className="text-slate-400" /> <div className="flex-1 min-w-0"> <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p> {item.path?.length > 0 && <p className="text-[11px] text-slate-400 truncate">{item.path.join(' › ')}</p>} </div> <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${meta.badge}`}>{meta.label}</span> </button> ); };
 
   return (
