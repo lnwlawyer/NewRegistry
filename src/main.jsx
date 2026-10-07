@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import './styles.css';
 import { createRoot } from 'react-dom/client';
 import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './data-logic.js';
 import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSearch, recordChatbotMiss } from './analytics.js';
