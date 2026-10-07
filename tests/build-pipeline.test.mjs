@@ -12,7 +12,7 @@ const lock = JSON.parse(fs.readFileSync(new URL('../package-lock.json', import.m
 assert.match(html, /<script\s+type=["']module["']\s+src=["']\/src\/main\.jsx["']><\/script>/, 'index.html must load the Vite entry module');
 assert.doesNotMatch(html, /@babel\/standalone|text\/babel/, 'browser Babel must be removed');
 assert.doesNotMatch(html, /type=["']importmap["']|esm\.sh\/react|esm\.sh\/lucide-react/, 'browser import map/CDN React dependencies must be removed');
-assert.match(html, /cdn\.tailwindcss\.com/, 'Tailwind CDN remains intentionally in Task #4B');
+assert.doesNotMatch(html, /cdn\.tailwindcss\.com/, 'Tailwind must be compiled by Vite after Task #7');
 assert.equal(pkg.dependencies.react, '18.2.0');
 assert.equal(pkg.dependencies['react-dom'], '18.2.0');
 assert.equal(pkg.dependencies['lucide-react'], '0.344.0');
@@ -33,4 +33,4 @@ assert.match(pagesWorkflow, /actions\/deploy-pages@v4/, 'Pages workflow must use
 assert.match(pagesWorkflow, /if:\s*github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/, 'Pages deployment must run only after pushes to main');
 
 console.log('Build pipeline regression guard: PASS');
-console.log('Verified Vite entry, npm React dependencies, relative Pages base, Tailwind scope, and PWA artifact copy.');
+console.log('Verified Vite entry, npm React dependencies, relative Pages base, compiled Tailwind scope, and PWA artifact copy.');
