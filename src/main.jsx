@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './data-logic.js';
 import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSearch, recordChatbotMiss } from './analytics.js';
 import { assertValidDataRows } from './data-validation.js';
+import { retrieveGroundedSources, buildGroundingContext, validateCitationIds } from './ai-grounding.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
@@ -358,44 +359,10 @@ const AIChatbotView = ({ manualDatabase, decisionRules }) => {
     setHasSavedKey(true); 
   };
 
-  // ฟังก์ชันดึง Context ที่เกี่ยวข้องเพื่อส่งให้ AI (RAG แบบง่าย)
+  // ดึง Context แบบ ranked retrieval โดยยังคง Grounded-only
   const getRelevantContext = (query) => {
-    const q = query.trim().toLowerCase();
-    let contextText = "ข้อมูลอ้างอิงจากฐานข้อมูลงานทะเบียน:\n\n";
-    let foundCount = 0;
-
-    // ค้นหาในคู่มือ
-    manualDatabase.forEach(main => {
-      main.subCategories.forEach(sub => {
-        sub.topics.forEach(topic => {
-          const topicMatches = topic.title.toLowerCase().includes(q);
-          ['meaning', 'summary', 'laws', 'qna'].forEach(sec => {
-            if (topic.content[sec]) {
-              topic.content[sec].forEach(entry => {
-                if (entry.text && (entry.text.toLowerCase().includes(q) || topicMatches)) {
-                  if (foundCount < 5) { // ส่ง Context ให้ AI ไม่เกิน 5 เรื่องย่อๆ ป้องกัน Token ล้น
-                    contextText += `- [${topic.title}]: ${entry.text.substring(0, 500)}...\n`;
-                    foundCount++;
-                  }
-                }
-              });
-            }
-          });
-        });
-      });
-    });
-
-    // ค้นหาใน Decision Rules
-    decisionRules.forEach(rule => {
-       if (rule.requestType.toLowerCase().includes(q) || (rule.diagnosis && rule.diagnosis.toLowerCase().includes(q))) {
-          if (foundCount < 7) {
-            contextText += `- [Decision: ${rule.requestType}]: วินิจฉัย: ${rule.diagnosis} | สรุป: ${rule.summary} | กฎหมาย: ${rule.reference}\n`;
-            foundCount++;
-          }
-       }
-    });
-
-    return { foundCount, contextText };
+    const sources = retrieveGroundedSources(query, manualDatabase, decisionRules, { manual: 5, total: 7 });
+    return buildGroundingContext(sources);
   };
 
   const handleSend = async (e) => { 
@@ -408,7 +375,7 @@ const AIChatbotView = ({ manualDatabase, decisionRules }) => {
     setIsLoading(true);
 
     // 1. ดึง Context ก่อน
-    const { foundCount, contextText } = getRelevantContext(userMsg);
+    const { foundCount, contextText, sourceIds } = getRelevantContext(userMsg);
 
     // Grounded-only by default: ไม่มีหลักฐานในฐานข้อมูล = ไม่ส่งคำถามออกไปยัง AI
     if (foundCount === 0) {
@@ -421,7 +388,7 @@ const AIChatbotView = ({ manualDatabase, decisionRules }) => {
     }
 
     // 2. สร้าง Prompt ส่งให้ Gemini โดยจำกัดคำตอบเฉพาะ Context ที่ค้นพบ
-    const systemPrompt = `คุณคือผู้ช่วยสังเคราะห์ข้อมูลงานทะเบียนที่ดิน ตอบโดยใช้เฉพาะข้อมูลอ้างอิง (Context) ที่ให้มาเท่านั้น ห้ามเติมข้อกฎหมาย ข้อเท็จจริง หรือความเห็นจากความรู้ทั่วไปของโมเดล หาก Context ไม่เพียงพอที่จะตอบประเด็นใด ให้ระบุชัดเจนว่า "ข้อมูลอ้างอิงที่พบยังไม่เพียงพอสำหรับประเด็นนี้" ห้ามคาดเดา ตอบให้กระชับ เข้าใจง่าย สุภาพ และระบุชื่อแหล่งอ้างอิงในวงเล็บเหลี่ยมตามที่ปรากฏใน Context เมื่อกล่าวถึงสาระสำคัญ\n\n${contextText}`;
+    const systemPrompt = `คุณคือผู้ช่วยสังเคราะห์ข้อมูลงานทะเบียนที่ดิน ตอบโดยใช้เฉพาะข้อมูลอ้างอิง (Context) ที่ให้มาเท่านั้น ห้ามเติมข้อกฎหมาย ข้อเท็จจริง หรือความเห็นจากความรู้ทั่วไปของโมเดล หาก Context ไม่เพียงพอที่จะตอบประเด็นใด ให้ระบุชัดเจนว่า "ข้อมูลอ้างอิงที่พบยังไม่เพียงพอสำหรับประเด็นนี้" ห้ามคาดเดา ตอบให้กระชับ เข้าใจง่าย สุภาพ และอ้างอิงด้วยรหัสแหล่งข้อมูล [SRC-xx] ที่ปรากฏใน Context ทุกครั้งเมื่อกล่าวถึงสาระสำคัญ ห้ามสร้างรหัสอ้างอิงอื่นเอง\n\n${contextText}`;
     
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey.trim()}`, {
@@ -444,8 +411,12 @@ const AIChatbotView = ({ manualDatabase, decisionRules }) => {
 
       const data = await response.json();
       const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'ขออภัย ไม่สามารถสร้างคำตอบได้ในขณะนี้';
+      const citationCheck = validateCitationIds(aiReply, sourceIds);
+      const safeReply = citationCheck.hasCitation && citationCheck.invalid.length === 0
+        ? aiReply
+        : 'ไม่สามารถยืนยันแหล่งอ้างอิงของคำตอบ AI ได้ จึงไม่แสดงคำตอบดังกล่าว กรุณาค้นจากคู่มือหรือเอกสารในระบบเพิ่มเติม';
       
-      setMessages(prev => [...prev, { sender: 'bot', text: aiReply }]);
+      setMessages(prev => [...prev, { sender: 'bot', text: safeReply }]);
     } catch (err) {
       let errMsg = err.message;
       // ตรวจจับ Error กรณีเซิร์ฟเวอร์เต็ม
