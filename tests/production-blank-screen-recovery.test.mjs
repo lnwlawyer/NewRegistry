@@ -12,3 +12,4 @@ assert.match(source, /\bExternalLink\b[\s\S]*from 'lucide-react'/, 'ExternalLink
 
 console.log('Production blank-screen recovery guard: PASS');
 console.log('Verified root crash fallback, isolated source timeouts, non-blocking targeted retry, and external-link icon import.');
+// CI trigger marker: production incident recovery.
