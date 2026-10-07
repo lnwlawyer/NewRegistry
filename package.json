@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node tests/credential-safety.test.mjs && node tests/ai-grounding-safety.test.mjs && node tests/data-decision-logic.test.mjs && node tests/modularization-structure.test.mjs && node tests/build-pipeline.test.mjs",
-    "build": "vite build"
+    "build": "vite build && node scripts/copy-static.mjs"
   },
   "dependencies": {
     "lucide-react": "0.344.0",
