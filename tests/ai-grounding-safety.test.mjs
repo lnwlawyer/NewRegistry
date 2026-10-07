@@ -8,12 +8,14 @@ const forbidden = [
 ];
 
 const required = [
-  ['Structured retrieval result', /return\s*\{\s*foundCount\s*,\s*contextText\s*\}/],
+  ['Structured retrieval result', /return\s+buildGroundingContext\(sources\)/],
   ['No-evidence network gate', /if\s*\(foundCount\s*===\s*0\)[\s\S]*?setIsLoading\(false\);[\s\S]*?return;/],
   ['Grounding refusal message', /ไม่พบข้อมูลอ้างอิงเพียงพอในฐานข้อมูลของระบบสำหรับคำถามนี้/],
   ['Context-only instruction', /ตอบโดยใช้เฉพาะข้อมูลอ้างอิง \(Context\) ที่ให้มาเท่านั้น/],
   ['No-general-knowledge instruction', /ห้ามเติมข้อกฎหมาย ข้อเท็จจริง หรือความเห็นจากความรู้ทั่วไปของโมเดล/],
   ['Insufficient-context instruction', /ข้อมูลอ้างอิงที่พบยังไม่เพียงพอสำหรับประเด็นนี้/],
+  ['Citation validation before display', /validateCitationIds\(aiReply,\s*sourceIds\)/],
+  ['Unverified citation suppression', /ไม่สามารถยืนยันแหล่งอ้างอิงของคำตอบ AI ได้/],
 ];
 
 const failures = [];
