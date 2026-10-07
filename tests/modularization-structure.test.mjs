@@ -6,7 +6,7 @@ const moduleSource = fs.readFileSync(new URL('../src/data-logic.js', import.meta
 
 assert.match(
   appSource,
-  /import\s*\{[^}]*parseCSV[^}]*transformManualData[^}]*transformDecisionData[^}]*evalCondition[^}]*transformChatbotData[^}]*transformArchiveData[^}]*\}\s*from\s*['"]\.\/src\/data-logic\.js['"]/s,
+  /import\s*\{[^}]*parseCSV[^}]*transformManualData[^}]*transformDecisionData[^}]*evalCondition[^}]*transformChatbotData[^}]*transformArchiveData[^}]*\}\s*from\s*['"].\/data-logic.js['"]/s,
   'src\/main.jsx must import production data logic from src/data-logic.js'
 );
 
