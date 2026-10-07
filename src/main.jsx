@@ -14,7 +14,7 @@ import {
   ListChecks, Landmark, BookMarked, Database, AlertCircle, MessageCircle, Send, Layers, Library, X,
   RefreshCw, Settings, Eye, Link, Save, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Table,
   Clock, Sparkles, ArrowUpRight, Star,
-  Printer, Bell, TrendingUp, BarChart2, Key, Check, Globe, Zap
+  Printer, Bell, TrendingUp, BarChart2, Key, Check, Globe, Zap, ExternalLink
 } from 'lucide-react';
 
 // ==========================================
@@ -724,7 +724,7 @@ function App() {
   const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false, onlySource = null) => {
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
-    setIsLoading(true);
+    if (!onlySource) setIsLoading(true);
     const labels = { manual: URL_LABELS.manual, decision: URL_LABELS.decision, archive: URL_LABELS.archive, chatbot: URL_LABELS['chatbot_คนต่างด้าว'] };
     if (!onlySource) setLoadSources(createSourceStates(labels));
     else setLoadSources(prev => updateSourceState(prev, onlySource, 'loading'));
@@ -745,21 +745,28 @@ function App() {
           catch (error) { cacheRemove(cacheKey); console.warn('CACHE_RECOVERY', { source: cacheKey, code: error.code || 'INVALID_CACHE' }); }
         }
       }
-      const timeoutId = setTimeout(() => controller.abort('timeout'), 15000);
+      const requestController = new AbortController();
+      const abortRequest = () => requestController.abort(signal.reason || 'cancelled');
+      if (signal.aborted) abortRequest();
+      else signal.addEventListener('abort', abortRequest, { once: true });
+      const timeoutId = setTimeout(() => requestController.abort('timeout'), 15000);
       try {
         const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`;
-        const r = await fetch(noCache, { signal });
+        const r = await fetch(noCache, { signal: requestController.signal });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const parsed = parseCSV(await r.text());
         const rows = applyQuality(parsed);
         cacheSet(cacheKey, rows);
         return rows;
       } catch (error) {
-        if (signal.aborted && controller.signal.reason === 'timeout') {
+        if (requestController.signal.aborted && requestController.signal.reason === 'timeout') {
           const timeoutError = new Error('Source request timed out'); timeoutError.name = 'TimeoutError'; timeoutError.code = 'TIMEOUT'; throw timeoutError;
         }
         throw error;
-      } finally { clearTimeout(timeoutId); }
+      } finally {
+        clearTimeout(timeoutId);
+        signal.removeEventListener('abort', abortRequest);
+      }
     };
 
     const runSource = async (key) => {
@@ -787,7 +794,7 @@ function App() {
     try {
       if (onlySource) await runSource(onlySource);
       else for (const key of ['manual', 'decision', 'archive', 'chatbot']) { if (signal.aborted) break; await runSource(key); }
-    } finally { if (!signal.aborted || controller.signal.reason === 'timeout') setIsLoading(false); }
+    } finally { if (!onlySource && !signal.aborted) setIsLoading(false); }
   }, [sheetUrls]);
 
   const retrySource = useCallback((key) => {
@@ -998,5 +1005,9 @@ function App() {
 
 const rootElement = document.getElementById('root');
 const root = createRoot(rootElement);
-root.render(<App />);
+root.render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
     
