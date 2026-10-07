@@ -623,6 +623,18 @@ const WebEmbedView = ({ url, title, icon: Icon = Globe, theme = 'purple' }) => {
 
   return (
     <div className="absolute inset-0 bg-slate-50 z-0">
+      <div className="absolute top-3 right-3 z-20">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400"
+          aria-label={`เปิด ${title} ในเว็บไซต์ภายนอก`}
+        >
+          <ExternalLink size={16} aria-hidden="true" />
+          เปิดเว็บไซต์ภายนอก
+        </a>
+      </div>
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-10 backdrop-blur-sm">
           <Loader2 className={`animate-spin ${t.spinner} mb-3`} size={36} />
