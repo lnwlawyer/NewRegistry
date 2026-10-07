@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node tests/credential-safety.test.mjs && node tests/ai-grounding-safety.test.mjs && node tests/data-decision-logic.test.mjs && node tests/modularization-structure.test.mjs && node tests/build-pipeline.test.mjs && node tests/pwa-update-safety.test.mjs && node tests/analytics-privacy.test.mjs && node tests/data-schema-validation.test.mjs",
+    "test": "node tests/credential-safety.test.mjs && node tests/ai-grounding-safety.test.mjs && node tests/data-decision-logic.test.mjs && node tests/modularization-structure.test.mjs && node tests/build-pipeline.test.mjs && node tests/pwa-update-safety.test.mjs && node tests/analytics-privacy.test.mjs && node tests/data-schema-validation.test.mjs && node tests/tailwind-build.test.mjs",
     "build": "vite build && node scripts/copy-static.mjs"
   },
   "dependencies": {
