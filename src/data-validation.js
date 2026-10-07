@@ -61,3 +61,65 @@ export const assertValidDataRows = (kind, rows) => {
   }
   return rows;
 };
+
+const getValue = (row, aliases) => {
+  if (!row || typeof row !== 'object') return '';
+  for (const alias of aliases) {
+    const key = Object.keys(row).find(candidate => normalizeHeader(candidate) === normalizeHeader(alias));
+    if (key !== undefined) return String(row[key] ?? '').trim();
+  }
+  return '';
+};
+
+const ROW_RULES = {
+  manual: [
+    { code: 'MISSING_MAIN_CATEGORY', aliases: ['MainCategory', 'หมวดหมู่หลัก'] },
+    { code: 'MISSING_TOPIC_TITLE', aliases: ['TopicTitle', 'ชื่อเรื่อง'] },
+  ],
+  decision: [
+    { code: 'MISSING_REQUEST_TYPE', aliases: ['ประเภทคำขอ', 'RequestType'] },
+  ],
+  archive: [
+    { code: 'MISSING_ARCHIVE_CATEGORY', aliases: ['หมวดหมู่หลัก', 'ArchiveCategory'] },
+  ],
+  chatbot: [
+    { code: 'MISSING_KEYWORDS', aliases: ['Keywords', 'คีย์เวิร์ด'] },
+    { code: 'MISSING_ANSWER', aliases: ['Answer', 'คำตอบ'] },
+  ],
+};
+
+export const inspectDataQuality = (kind, rows) => {
+  const schemaResult = validateDataRows(kind, rows);
+  if (!schemaResult.ok) return { ...schemaResult, validRows: [], rejectedCount: Array.isArray(rows) ? rows.length : 0, issues: [{ code: schemaResult.code, count: Array.isArray(rows) ? rows.length : 0 }] };
+
+  const rules = ROW_RULES[kind] || [];
+  const issues = new Map();
+  const validRows = [];
+
+  for (const row of rows) {
+    const failed = rules.filter(rule => !getValue(row, rule.aliases));
+    if (failed.length === 0) {
+      validRows.push(row);
+      continue;
+    }
+    for (const rule of failed) issues.set(rule.code, (issues.get(rule.code) || 0) + 1);
+  }
+
+  return {
+    ok: true,
+    code: 'VALID_WITH_ROW_QUALITY',
+    rowCount: rows.length,
+    validCount: validRows.length,
+    rejectedCount: rows.length - validRows.length,
+    validRows,
+    issues: [...issues.entries()].map(([code, count]) => ({ code, count })),
+  };
+};
+
+export const sanitizeDataQualityReport = (sourceKey, report) => ({
+  source: String(sourceKey || 'unknown'),
+  rowCount: Number(report?.rowCount || 0),
+  validCount: Number(report?.validCount || 0),
+  rejectedCount: Number(report?.rejectedCount || 0),
+  issues: Array.isArray(report?.issues) ? report.issues.map(issue => ({ code: String(issue.code || 'UNKNOWN'), count: Number(issue.count || 0) })) : [],
+});
