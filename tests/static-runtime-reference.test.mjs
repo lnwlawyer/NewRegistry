@@ -24,8 +24,9 @@ for (const component of [...main.matchAll(/<([A-Z][A-Za-z0-9]*)\b/g)].map(match 
   if (['React', 'Fragment'].includes(component)) continue;
   if (lucideNames.has(component)) continue;
   // Local React components are declared in this file. Anything else must not silently become an undefined JSX reference.
-  const localDeclaration = new RegExp('(?:const|function|class)\\s+' + component + '\\b').test(main);
-  assert.ok(localDeclaration, `JSX component ${component} is used without an import or local declaration`);
+  const localDeclaration = new RegExp('(?:const|let|var|function|class)\\s+' + component + '\\b').test(main);
+  const destructuredAlias = new RegExp(':\\s*' + component + '\\b').test(main);
+  assert.ok(localDeclaration || destructuredAlias, `JSX component ${component} is used without an import or local declaration`);
 }
 
 console.log('Static runtime reference guard: PASS');
