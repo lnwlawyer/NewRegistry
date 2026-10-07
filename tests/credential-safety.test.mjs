@@ -17,6 +17,10 @@ const forbidden = [
     pattern: /corsproxy\.io/i,
   },
   {
+    name: 'Direct browser fetch to SLegal API',
+    pattern: /fetch\(\s*['"`]https:\/\/api\.slegaltools\.digital/i,
+  },
+  {
     name: 'Unsafe absolute API-key safety claim',
     pattern: /ปลอดภัย\s*100%/i,
   },
