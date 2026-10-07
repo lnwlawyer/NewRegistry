@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from '../src/data-logic.js';
+import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData, getEmojiForTitle } from '../src/data-logic.js';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 
@@ -91,6 +91,13 @@ const plain = value => JSON.parse(JSON.stringify(value));
   assert.deepEqual(result[0].keywords, ['ต่างด้าว', 'ที่ดิน']);
   assert.equal(result[1].answer, 'คำตอบ 2');
   assert.equal(result[0].category, 'คนต่างด้าว');
+}
+
+// Shared title icon helper: exercise non-null paths used by both data transforms and UI rendering
+{
+  assert.equal(getEmojiForTitle('คนต่างด้าวถือครองที่ดิน'), '🌍');
+  assert.equal(getEmojiForTitle('การจดทะเบียนขาย'), '📝');
+  assert.equal(getEmojiForTitle('หมวดทั่วไป'), null);
 }
 
 // Archive transform: known and dynamic categories, hierarchy and document defaults
