@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './data-logic.js';
+import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSearch, recordChatbotMiss } from './analytics.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
@@ -78,15 +79,16 @@ const useVisited = () => {
   return { markVisited, isVisited };
 };
 
-const ANALYTICS_KEY = 'app_analytics';
-const analyticsLoad = () => { try { return JSON.parse(localStorage.getItem(ANALYTICS_KEY) || '{"pageviews":[],"searches":[],"chatbotMisses":[]}'); } catch { return { pageviews: [], searches: [], chatbotMisses: [] }; } };
-const analyticsSave = (data) => { try { localStorage.setItem(ANALYTICS_KEY, JSON.stringify(data)); } catch {} };
-const analyticsClear = () => { try { localStorage.removeItem(ANALYTICS_KEY); } catch {} };
-
 const useAnalytics = () => {
-  const trackPageview = useCallback((tab, title, path = []) => { const data = analyticsLoad(); data.pageviews.push({ tab, title, path: path.filter(Boolean).join(' › '), ts: Date.now() }); if (data.pageviews.length > 500) data.pageviews = data.pageviews.slice(-500); analyticsSave(data); }, []);
-  const trackSearch = useCallback((query, resultCount) => { if (!query || query.length < 2) return; const data = analyticsLoad(); data.searches.push({ query, resultCount, ts: Date.now() }); if (data.searches.length > 200) data.searches = data.searches.slice(-200); analyticsSave(data); }, []);
-  const trackChatbotMiss = useCallback((query, category) => { const data = analyticsLoad(); data.chatbotMisses.push({ query, category, ts: Date.now() }); if (data.chatbotMisses.length > 200) data.chatbotMisses = data.chatbotMisses.slice(-200); analyticsSave(data); }, []);
+  const trackPageview = useCallback((tab, title, path = []) => {
+    analyticsSave(localStorage, recordPageview(analyticsLoad(localStorage), tab, title, path));
+  }, []);
+  const trackSearch = useCallback((_query, resultCount) => {
+    analyticsSave(localStorage, recordSearch(analyticsLoad(localStorage), resultCount));
+  }, []);
+  const trackChatbotMiss = useCallback((_query, category) => {
+    analyticsSave(localStorage, recordChatbotMiss(analyticsLoad(localStorage), category));
+  }, []);
   return { trackPageview, trackSearch, trackChatbotMiss };
 };
 
@@ -224,7 +226,7 @@ const LoadingScreen = ({ sources }) => ( <div className="flex-1 flex flex-col it
 // Admin Modal
 // ==========================================
 const AdminModal = ({ rawData, onReloadData, sheetUrls, onUpdateUrls, onClose }) => {
-  const [activeSection, setActiveSection] = useState('urls'); const [editedUrls, setEditedUrls] = useState({ ...sheetUrls }); const [savedFeedback, setSavedFeedback] = useState(''); const [expandedTable, setExpandedTable] = useState(null); const [tableSearch, setTableSearch] = useState(''); const [analyticsData] = useState(() => analyticsLoad());
+  const [activeSection, setActiveSection] = useState('urls'); const [editedUrls, setEditedUrls] = useState({ ...sheetUrls }); const [savedFeedback, setSavedFeedback] = useState(''); const [expandedTable, setExpandedTable] = useState(null); const [tableSearch, setTableSearch] = useState(''); const [analyticsData] = useState(() => analyticsLoad(localStorage));
   const handleSaveUrls = () => { onUpdateUrls(editedUrls); setSavedFeedback('บันทึกแล้ว! กด Reload เพื่อโหลดข้อมูลใหม่'); setTimeout(() => setSavedFeedback(''), 4000); };
   const hasUrlChanged = JSON.stringify(editedUrls) !== JSON.stringify(sheetUrls);
   const topPages = useMemo(() => { const counts = {}; analyticsData.pageviews.forEach(pv => { const key = pv.title || pv.tab; counts[key] = (counts[key] || 0) + 1; }); return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10); }, [analyticsData]);
