@@ -6,7 +6,7 @@ export const normalizeSearchText = value => String(value || '')
   .replace(/\s+/g, ' ').trim();
 
 const expandToken = token => {
-  const cleaned = token.replace(/^การ(?=.{2,})/, '').replace(/(?:ได้อย่างไร|อย่างไร|ยังไง|หรือไม่|ไหม|มั้ย)$/u, '');
+  const cleaned = token.replace(/^(?:ช่วยค้นหา|ช่วยหา|ค้นหา)(?=.{2,})/u, '').replace(/^การ(?=.{2,})/, '').replace(/(?:หน่อยครับ|หน่อยค่ะ|ได้อย่างไร|อย่างไร|ยังไง|หรือไม่|ไหม|มั้ย)$/u, '');
   const parts = [cleaned];
   for (const marker of ['ที่ดิน','คนต่างด้าว','นิติบุคคล','จดทะเบียน','มรดก']) {
     if (cleaned.includes(marker) && cleaned !== marker) parts.push(marker, ...cleaned.split(marker).filter(Boolean));
