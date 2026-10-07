@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './src/data-logic.js';
+import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from './data-logic.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
