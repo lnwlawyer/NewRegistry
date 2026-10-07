@@ -7,6 +7,7 @@ import { assertValidDataRows, inspectDataQuality, sanitizeDataQualityReport } fr
 import { retrieveGroundedSources, buildGroundingContext, validateCitationIds } from './ai-grounding.js';
 import { createSourceStates, classifySourceError, sourceErrorMessage, updateSourceState, hasSourceErrors } from './runtime-resilience.js';
 import { rankSearchItems, rankTitleItems, explainSearchMatch, getSearchHighlightTerms } from './search-ranking.js';
+import { loadSafeJsonState, saveSafeJsonState, sanitizeBookmarkList, sanitizeVisitedList, sanitizeSearchHistory } from './client-state.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
@@ -67,8 +68,8 @@ const cacheGet = (key) => { try { const raw = localStorage.getItem(`app_cache_${
 const cacheSet = (key, data) => { try { localStorage.setItem(`app_cache_${key}`, JSON.stringify({ data, ts: Date.now() })); } catch {} };
 const cacheRemove = (key) => { try { localStorage.removeItem(`app_cache_${key}`); } catch {} };
 const cacheClear = () => { try { Object.keys(localStorage).filter(k => k.startsWith('app_cache_')).forEach(k => localStorage.removeItem(k)); } catch {} };
-const bookmarkLoad = () => { try { return JSON.parse(localStorage.getItem('app_bookmarks') || '[]'); } catch { return []; } };
-const bookmarkSave = (list) => { try { localStorage.setItem('app_bookmarks', JSON.stringify(list)); } catch {} };
+const bookmarkLoad = () => loadSafeJsonState(localStorage, 'app_bookmarks', sanitizeBookmarkList);
+const bookmarkSave = (list) => saveSafeJsonState(localStorage, 'app_bookmarks', list, sanitizeBookmarkList);
 
 const useBookmarks = () => {
   const [bookmarks, setBookmarks] = useState(bookmarkLoad);
@@ -77,10 +78,10 @@ const useBookmarks = () => {
   return { bookmarks, toggle, isBookmarked };
 };
 
-const visitedLoad = () => { try { return new Set(JSON.parse(localStorage.getItem('app_visited') || '[]')); } catch { return new Set(); } };
+const visitedLoad = () => new Set(loadSafeJsonState(localStorage, 'app_visited', sanitizeVisitedList));
 const useVisited = () => {
   const [visited, setVisited] = useState(visitedLoad);
-  const markVisited = useCallback((url) => { setVisited(prev => { if (prev.has(url)) return prev; const next = new Set(prev); next.add(url); try { localStorage.setItem('app_visited', JSON.stringify([...next])); } catch {} return next; }); }, []);
+  const markVisited = useCallback((url) => { setVisited(prev => { if (prev.has(url)) return prev; const next = new Set(prev); next.add(url); saveSafeJsonState(localStorage, 'app_visited', [...next], sanitizeVisitedList); return next; }); }, []);
   const isVisited = useCallback((url) => visited.has(url), [visited]);
   return { markVisited, isVisited };
 };
@@ -132,7 +133,7 @@ const GlobalSearch = ({ manualDatabase = [], archiveDatabase = [], decisionRules
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeFilter, useStateFilter] = useState('all');
-  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem('gs_history') || '[]'); } catch { return []; } });
+  const [history, setHistory] = useState(() => loadSafeJsonState(localStorage, 'gs_history', sanitizeSearchHistory));
   const inputRef = useRef(null);
 
   const fullIndex = useMemo(() => [ ...buildManualIndex(manualDatabase), ...buildArchiveIndex(archiveDatabase), ...buildDecisionIndex(decisionRules), ...buildChatbotIndex(chatbotData) ], [manualDatabase, archiveDatabase, decisionRules, chatbotData]);
@@ -143,7 +144,7 @@ const GlobalSearch = ({ manualDatabase = [], archiveDatabase = [], decisionRules
   useEffect(() => { const handler = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setOpen(true); } if (e.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 50); else { setQuery(''); useStateFilter('all'); } }, [open]);
 
-  const saveHistory = useCallback((item) => { const entry = { id: item.id, title: item.title, tab: item.tab, path: item.path, ids: item.ids, url: item.url }; setHistory(prev => { const next = [entry, ...prev.filter(h => h.id !== entry.id)].slice(0, 8); try { localStorage.setItem('gs_history', JSON.stringify(next)); } catch {} return next; }); }, []);
+  const saveHistory = useCallback((item) => { const entry = { id: item.id, title: item.title, tab: item.tab, path: item.path, ids: item.ids, url: item.url }; setHistory(prev => { const next = [entry, ...prev.filter(h => h.id !== entry.id)].slice(0, 8); saveSafeJsonState(localStorage, 'gs_history', next, sanitizeSearchHistory); return next; }); }, []);
   const handleSelect = useCallback((item) => { saveHistory(item); if (onSearch) onSearch(query.trim(), results.length); setOpen(false); if (item.url) { window.open(item.url, '_blank', 'noopener'); return; } if (onNavigate) onNavigate(item); }, [onNavigate, saveHistory, onSearch, query, results.length]);
   const clearHistory = () => { setHistory([]); try { localStorage.removeItem('gs_history'); } catch {} };
 
