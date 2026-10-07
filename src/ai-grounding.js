@@ -1,6 +1,7 @@
 const STOP_WORDS = new Set([
   'คือ', 'อะไร', 'อย่างไร', 'ยังไง', 'กรณี', 'เกี่ยวกับ', 'ของ', 'ใน', 'ที่', 'และ', 'หรือ',
   'ให้', 'ได้', 'มี', 'เป็น', 'ต้อง', 'ทำ', 'การ', 'ขอ', 'ช่วย', 'อธิบาย', 'หน่อย', 'ครับ', 'ค่ะ',
+  'ช่วยอธิบาย', 'หน่อยครับ', 'หน่อยค่ะ',
 ]);
 
 export const normalizeThaiSearchText = value => String(value || '')
@@ -13,7 +14,7 @@ export const normalizeThaiSearchText = value => String(value || '')
 export const tokenizeQuery = value => {
   const normalized = normalizeThaiSearchText(value);
   if (!normalized) return [];
-  return [...new Set(normalized.split(' ').filter(token => token.length >= 2 && !STOP_WORDS.has(token)))];
+  return [...new Set(normalized.split(' ').map(token => token.replace(/^การ(?=.{2,})/, '')).filter(token => token.length >= 2 && !STOP_WORDS.has(token)))];
 };
 
 const scoreText = (query, tokens, value, weight = 1) => {
