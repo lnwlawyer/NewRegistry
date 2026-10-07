@@ -11,10 +11,21 @@ export const normalizeThaiSearchText = value => String(value || '')
   .replace(/\s+/g, ' ')
   .trim();
 
+const expandToken = token => {
+  const cleaned = token.replace(/^การ(?=.{2,})/, '').replace(/(?:ได้อย่างไร|อย่างไร|ยังไง|หรือไม่|ไหม|มั้ย)$/u, '');
+  const parts = [cleaned];
+  for (const marker of ['ที่ดิน', 'คนต่างด้าว', 'นิติบุคคล']) {
+    if (cleaned.includes(marker) && cleaned !== marker) {
+      parts.push(marker, ...cleaned.split(marker).filter(Boolean));
+    }
+  }
+  return parts;
+};
+
 export const tokenizeQuery = value => {
   const normalized = normalizeThaiSearchText(value);
   if (!normalized) return [];
-  return [...new Set(normalized.split(' ').map(token => token.replace(/^การ(?=.{2,})/, '')).filter(token => token.length >= 2 && !STOP_WORDS.has(token)))];
+  return [...new Set(normalized.split(' ').flatMap(expandToken).filter(token => token.length >= 2 && !STOP_WORDS.has(token)))];
 };
 
 const scoreText = (query, tokens, value, weight = 1) => {
