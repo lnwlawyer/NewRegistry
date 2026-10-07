@@ -388,10 +388,9 @@
           const [modelsList, setModelsList] = useState([]); // เพิ่ม State สำหรับเก็บรายชื่อโมเดล
           const messagesEndRef = useRef(null);
 
-          // ตรวจสอบและโหลด API Key จาก localStorage เมื่อเริ่มคอมโพเนนต์
-          useEffect(() => { 
-            const savedKey = localStorage.getItem('gemini_api_key'); 
-            if (savedKey) { setApiKey(savedKey); setHasSavedKey(true); } 
+          // API Key ใช้เฉพาะ session ปัจจุบัน ไม่บันทึกลง persistent browser storage
+          useEffect(() => {
+            localStorage.removeItem('gemini_api_key'); // ล้าง key รุ่นเก่าที่อาจเคยถูกบันทึก
           }, []);
 
           // ดึงรายชื่อโมเดลจาก Google API โดยตรงเมื่อมี API Key
@@ -432,8 +431,8 @@
           useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
           const handleSaveKey = () => { 
-            if (!apiKey.trim()) return; 
-            localStorage.setItem('gemini_api_key', apiKey.trim()); 
+            if (!apiKey.trim()) return;
+            setApiKey(apiKey.trim());
             setHasSavedKey(true); 
           };
 
@@ -527,7 +526,7 @@
               // ถ้า API Key ผิดพลาด ให้ล้าง Key
               if (err.message.includes('API_KEY_INVALID') || err.message.includes('400')) {
                  setHasSavedKey(false);
-                 localStorage.removeItem('gemini_api_key');
+                 setApiKey('');
               }
             } finally {
               setIsLoading(false);
@@ -591,7 +590,7 @@
                       บันทึกและเริ่มแชท 
                     </button>
                     <p className="mt-4 text-[10px] text-slate-400">
-                      Key ของคุณจะถูกบันทึกไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ปลอดภัย 100%
+                      Key ใช้เฉพาะระหว่างที่เปิดแอพหน้านี้ และจะไม่ถูกบันทึกไว้ใน localStorage
                     </p>
                   </div>
                 </div>
@@ -647,8 +646,8 @@
           const [aiQuestion, setAiQuestion] = useState(''); const [aiTopK, setAiTopK] = useState(10); const [lawCode, setLawCode] = useState('ป.วิ.อ.'); const [lawSections, setLawSections] = useState('43, 44/1'); const [lawTopK, setLawTopK] = useState(10); const [dekaNo, setDekaNo] = useState('2412/2562');
           const [isLoading, setIsLoading] = useState(false); const [error, setError] = useState(null); const [results, setResults] = useState(null); const [rawJson, setRawJson] = useState(null); const [endpointLabel, setEndpointLabel] = useState('');
 
-          useEffect(() => { const savedKey = localStorage.getItem('slegal_api_key'); if (savedKey) { setApiKey(savedKey); setHasSavedKey(true); } }, []);
-          const handleSaveKey = () => { if (!apiKey.trim()) return; localStorage.setItem('slegal_api_key', apiKey.trim()); setHasSavedKey(true); };
+          useEffect(() => { const savedKey = null; if (savedKey) { setApiKey(savedKey); setHasSavedKey(true); } }, []);
+          const handleSaveKey = () => { if (!apiKey.trim()) return;  setHasSavedKey(true); };
 
           const executeRequest = async () => {
             setError(null); setResults(null); setRawJson(null);
@@ -656,7 +655,7 @@
             let targetUrl = ''; let payload = {};
             if (searchMode === 'ai_search') { targetUrl = 'https://api.slegaltools.digital/api/search/ai'; payload = { question: aiQuestion.trim() || "ตัวแทนโบรคเกอร์", top_k: parseInt(aiTopK) || 10 }; } else if (searchMode === 'search_by_law') { targetUrl = 'https://api.slegaltools.digital/api/search/law'; const sectionsArray = lawSections.split(',').map(s => s.trim()).filter(s => s); payload = { law_code: lawCode.trim() || "ป.วิ.อ.", sections: sectionsArray, top_k: parseInt(lawTopK) || 10 }; } else if (searchMode === 'get_deka') { targetUrl = 'https://api.slegaltools.digital/api/tool/get_deka_case'; payload = { deka_no: dekaNo.trim(), include_long_text: true, include_law_refs: true }; }
             setIsLoading(true); setEndpointLabel(`POST ${targetUrl}`);
-            try { const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl); const response = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` }, body: JSON.stringify(payload) }); if (!response.ok) { throw new Error(`เซิร์ฟเวอร์ตอบกลับรหัส: ${response.status}`); } const data = await response.json(); setRawJson(data); let items = []; if (data?.data?.results && Array.isArray(data.data.results)) { items = data.data.results; } else if (data?.data?.case) { items = [data.data.case]; } else if (data?.data?.deka_no || data?.data?.title) { items = [data.data]; } else if (data?.deka_no || data?.title) { items = [data]; } else if (Array.isArray(data)) { items = data; } setResults(items); } catch (err) { setError(err.message); } finally { setIsLoading(false); }
+            try { throw new Error('ปิดการค้นหาผ่าน API ชั่วคราวเพื่อความปลอดภัย: ระบบเดิมต้องส่ง Bearer Token ผ่าน CORS proxy ภายนอก ซึ่งไม่ควรใช้กับข้อมูลรับรอง กรุณาใช้ระบบสืบค้นศาลฎีกาที่เชื่อมไว้ในแอพแทนจนกว่าจะมีการเชื่อมต่อ API โดยตรงที่ปลอดภัย'); if (!response.ok) { throw new Error(`เซิร์ฟเวอร์ตอบกลับรหัส: ${response.status}`); } const data = await response.json(); setRawJson(data); let items = []; if (data?.data?.results && Array.isArray(data.data.results)) { items = data.data.results; } else if (data?.data?.case) { items = [data.data.case]; } else if (data?.data?.deka_no || data?.data?.title) { items = [data.data]; } else if (data?.deka_no || data?.title) { items = [data]; } else if (Array.isArray(data)) { items = data; } setResults(items); } catch (err) { setError(err.message); } finally { setIsLoading(false); }
           };
 
           return (
