@@ -1,21 +1,5 @@
-import fs from 'node:fs';
-import vm from 'node:vm';
 import assert from 'node:assert/strict';
-
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const startMarker = 'const parseCSV =';
-const endMarker = 'const gsHighlight =';
-const start = html.indexOf(startMarker);
-const end = html.indexOf(endMarker, start);
-assert.ok(start >= 0 && end > start, 'pure data-processing block must remain discoverable in index.html');
-
-const block = html.slice(start, end);
-const names = ['parseCSV', 'transformManualData', 'transformDecisionData', 'evalCondition', 'transformChatbotData', 'transformArchiveData'];
-const exportCode = `\nthis.__tested = { ${names.join(', ')} };`;
-const sandbox = {};
-vm.createContext(sandbox);
-vm.runInContext(block + exportCode, sandbox);
-const { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } = sandbox.__tested;
+import { parseCSV, transformManualData, transformDecisionData, evalCondition, transformChatbotData, transformArchiveData } from '../src/data-logic.js';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 
