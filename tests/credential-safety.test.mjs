@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
 const forbidden = [
   {
