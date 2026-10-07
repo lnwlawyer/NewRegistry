@@ -5,6 +5,7 @@ import { parseCSV, transformManualData, transformDecisionData, evalCondition, tr
 import { analyticsLoad, analyticsSave, analyticsClear, recordPageview, recordSearch, recordChatbotMiss } from './analytics.js';
 import { assertValidDataRows, inspectDataQuality, sanitizeDataQualityReport } from './data-validation.js';
 import { retrieveGroundedSources, buildGroundingContext, validateCitationIds } from './ai-grounding.js';
+import { createSourceStates, classifySourceError, sourceErrorMessage, updateSourceState, hasSourceErrors } from './runtime-resilience.js';
 import { 
   BookOpen, ChevronRight, FileText, Scale, Gavel, 
   FileQuestion, ArrowLeft, Bot, FileDown, 
@@ -63,6 +64,7 @@ const URL_LABELS = {
 const CACHE_TTL = 30 * 60 * 1000;
 const cacheGet = (key) => { try { const raw = localStorage.getItem(`app_cache_${key}`); if (!raw) return null; const { data, ts } = JSON.parse(raw); if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(`app_cache_${key}`); return null; } return data; } catch { return null; } };
 const cacheSet = (key, data) => { try { localStorage.setItem(`app_cache_${key}`, JSON.stringify({ data, ts: Date.now() })); } catch {} };
+const cacheRemove = (key) => { try { localStorage.removeItem(`app_cache_${key}`); } catch {} };
 const cacheClear = () => { try { Object.keys(localStorage).filter(k => k.startsWith('app_cache_')).forEach(k => localStorage.removeItem(k)); } catch {} };
 const bookmarkLoad = () => { try { return JSON.parse(localStorage.getItem('app_bookmarks') || '[]'); } catch { return []; } };
 const bookmarkSave = (list) => { try { localStorage.setItem('app_bookmarks', JSON.stringify(list)); } catch {} };
@@ -693,7 +695,6 @@ function App() {
   const [rawArchiveRows, setRawArchiveRows]   = useState([]);
   const [loadSources, setLoadSources]   = useState([]);
   const [isLoading, setIsLoading]       = useState(true);
-  const [loadError, setLoadError]       = useState(false);
   const [viewState, setViewState]       = useState({ level: 'main', mainId: null, subId: null, topicId: null, sectionKey: null });
   const [searchQuery, setSearchQuery]   = useState('');
   const [decisionResetKey, setDecisionResetKey] = useState(0);
@@ -721,20 +722,78 @@ function App() {
 
   const abortRef = useRef(null);
 
-  const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false) => {
-    if (abortRef.current) abortRef.current.abort(); const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
-    setIsLoading(true); setLoadError(false);
-    const sources = [ { key: 'manual', label: URL_LABELS.manual, status: 'loading' }, { key: 'decision', label: URL_LABELS.decision, status: 'pending' }, { key: 'archive', label: URL_LABELS.archive, status: 'pending' }, { key: 'chatbot', label: URL_LABELS['chatbot_คนต่างด้าว'], status: 'pending' }, ];
-    setLoadSources([...sources]); const updateSource = (key, status) => setLoadSources(prev => prev.map(s => s.key === key ? { ...s, status } : s));
-    const fetchCSV = async (cacheKey, url, schemaKind = cacheKey) => { const applyQuality = (rows) => { assertValidDataRows(schemaKind, rows); const report = inspectDataQuality(schemaKind, rows); const safeReport = sanitizeDataQualityReport(cacheKey, report); if (safeReport.rejectedCount > 0) console.warn('DATA_QUALITY', safeReport); return report.validRows; }; if (!forceRefresh) { const cached = cacheGet(cacheKey); if (cached) return applyQuality(cached); } const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`; const r = await fetch(noCache, { signal }); if (!r.ok) throw new Error(`HTTP ${r.status}`); const parsed = parseCSV(await r.text()); const rows = applyQuality(parsed); cacheSet(cacheKey, rows); return rows; };
+  const loadDataFromSheets = useCallback(async (urls = sheetUrls, forceRefresh = false, onlySource = null) => {
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController(); abortRef.current = controller; const signal = controller.signal;
+    setIsLoading(true);
+    const labels = { manual: URL_LABELS.manual, decision: URL_LABELS.decision, archive: URL_LABELS.archive, chatbot: URL_LABELS['chatbot_คนต่างด้าว'] };
+    if (!onlySource) setLoadSources(createSourceStates(labels));
+    else setLoadSources(prev => updateSourceState(prev, onlySource, 'loading'));
+    const updateSource = (key, status, errorCode = null) => setLoadSources(prev => updateSourceState(prev, key, status, errorCode));
+
+    const fetchCSV = async (cacheKey, url, schemaKind = cacheKey) => {
+      const applyQuality = (rows) => {
+        assertValidDataRows(schemaKind, rows);
+        const report = inspectDataQuality(schemaKind, rows);
+        const safeReport = sanitizeDataQualityReport(cacheKey, report);
+        if (safeReport.rejectedCount > 0) console.warn('DATA_QUALITY', safeReport);
+        return report.validRows;
+      };
+      if (!forceRefresh) {
+        const cached = cacheGet(cacheKey);
+        if (cached) {
+          try { return applyQuality(cached); }
+          catch (error) { cacheRemove(cacheKey); console.warn('CACHE_RECOVERY', { source: cacheKey, code: error.code || 'INVALID_CACHE' }); }
+        }
+      }
+      const timeoutId = setTimeout(() => controller.abort('timeout'), 15000);
+      try {
+        const noCache = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`;
+        const r = await fetch(noCache, { signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const parsed = parseCSV(await r.text());
+        const rows = applyQuality(parsed);
+        cacheSet(cacheKey, rows);
+        return rows;
+      } catch (error) {
+        if (signal.aborted && controller.signal.reason === 'timeout') {
+          const timeoutError = new Error('Source request timed out'); timeoutError.name = 'TimeoutError'; timeoutError.code = 'TIMEOUT'; throw timeoutError;
+        }
+        throw error;
+      } finally { clearTimeout(timeoutId); }
+    };
+
+    const runSource = async (key) => {
+      updateSource(key, 'loading');
+      try {
+        if (key === 'manual') setRawManualRows(await fetchCSV('manual', urls.manual));
+        if (key === 'decision') setRawDecisionRows(await fetchCSV('decision', urls.decision));
+        if (key === 'archive') setRawArchiveRows(await fetchCSV('archive', urls.archive));
+        if (key === 'chatbot') {
+          const allChatbot = [];
+          for (const [cacheKey, url] of Object.entries(urls)) {
+            if (!cacheKey.startsWith('chatbot_')) continue;
+            const cat = cacheKey.replace('chatbot_', '');
+            const rows = await fetchCSV(cacheKey, url, 'chatbot');
+            allChatbot.push(...transformChatbotData(rows, cat));
+          }
+          setRawChatbotRows(allChatbot);
+        }
+        updateSource(key, 'done');
+      } catch (error) {
+        if (error.name !== 'AbortError') updateSource(key, 'error', classifySourceError(error));
+      }
+    };
 
     try {
-      updateSource('manual', 'loading'); try { setRawManualRows(await fetchCSV('manual', urls.manual)); updateSource('manual', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('manual', 'error'); }
-      if (signal.aborted) return; updateSource('decision', 'loading'); try { setRawDecisionRows(await fetchCSV('decision', urls.decision)); updateSource('decision', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('decision', 'error'); }
-      if (signal.aborted) return; updateSource('archive', 'loading'); try { setRawArchiveRows(await fetchCSV('archive', urls.archive)); updateSource('archive', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('archive', 'error'); }
-      if (signal.aborted) return; updateSource('chatbot', 'loading'); try { const allChatbot = []; for (const [key, url] of Object.entries(urls)) { if (!key.startsWith('chatbot_')) continue; if (signal.aborted) break; const cat = key.replace('chatbot_', ''); const rows = await fetchCSV(key, url, 'chatbot'); allChatbot.push(...transformChatbotData(rows, cat)); } setRawChatbotRows(allChatbot); updateSource('chatbot', 'done'); } catch (e) { if (e.name !== 'AbortError') updateSource('chatbot', 'error'); }
-    } catch (err) { if (err.name !== 'AbortError') { console.error(err); setLoadError(true); } } finally { if (!signal.aborted) setIsLoading(false); }
+      if (onlySource) await runSource(onlySource);
+      else for (const key of ['manual', 'decision', 'archive', 'chatbot']) { if (signal.aborted) break; await runSource(key); }
+    } finally { if (!signal.aborted || controller.signal.reason === 'timeout') setIsLoading(false); }
   }, [sheetUrls]);
+
+  const retrySource = useCallback((key) => {
+    loadDataFromSheets(sheetUrls, true, key);
+  }, [loadDataFromSheets, sheetUrls]);
 
   useEffect(() => { loadDataFromSheets(); return () => abortRef.current?.abort(); }, []);
 
@@ -882,10 +941,17 @@ function App() {
                 </div>
               )}
 
-              {loadError && (
-                <div className="absolute top-0 left-0 right-0 bg-rose-50 text-rose-600 p-3 text-center text-sm z-20 border-b border-rose-200 flex items-center justify-center gap-2">
-                  <AlertCircle size={16} /><span>โหลดข้อมูลบางส่วนล้มเหลว</span>
-                  <button onClick={() => loadDataFromSheets(sheetUrls)} className="underline font-bold ml-1">ลองใหม่</button>
+              {hasSourceErrors(loadSources) && !isLoading && (
+                <div className="absolute top-0 left-0 right-0 bg-rose-50 text-rose-700 p-3 text-sm z-20 border-b border-rose-200">
+                  <div className="max-w-3xl mx-auto flex flex-col gap-2">
+                    <div className="flex items-center gap-2 font-bold"><AlertCircle size={16} /><span>ข้อมูลบางส่วนยังโหลดไม่สำเร็จ</span></div>
+                    {loadSources.filter(source => source.status === 'error').map(source => (
+                      <div key={source.key} className="flex items-center justify-between gap-3">
+                        <span>{source.label}: {sourceErrorMessage(source.errorCode)}</span>
+                        <button onClick={() => retrySource(source.key)} className="shrink-0 underline font-bold">ลองใหม่</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
