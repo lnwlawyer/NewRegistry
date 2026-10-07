@@ -1,0 +1,18 @@
+{
+  "name": "new-registry",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/credential-safety.test.mjs && node tests/ai-grounding-safety.test.mjs && node tests/data-decision-logic.test.mjs && node tests/modularization-structure.test.mjs && node tests/build-pipeline.test.mjs",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "lucide-react": "0.344.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.9"
+  }
+}
