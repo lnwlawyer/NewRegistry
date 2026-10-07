@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-const source = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
 const forbidden = [
   ['Fallback to model general knowledge', /โปรดตอบตามความรู้พื้นฐานที่คุณมีเกี่ยวกับการที่ดินและกฎหมายไทย/i],
