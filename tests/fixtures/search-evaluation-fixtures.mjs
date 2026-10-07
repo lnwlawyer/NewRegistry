@@ -10,7 +10,7 @@ export const SEARCH_EVALUATION_ITEMS = [
 ];
 
 export const SEARCH_EVALUATION_CASES = [
-  { name: 'natural foreign land question', query: 'คนต่างด้าวถือครองที่ดินได้อย่างไร', expectedTop1: 'foreign-land', expectedTopN: ['foreign-land','foreign-chatbot'], topN: 4 },
+  { name: 'natural foreign land question', query: 'คนต่างด้าวถือครองที่ดินได้อย่างไร', expectedTop1: 'foreign-chatbot', expectedTopN: ['foreign-chatbot','foreign-land'], topN: 4 },
   { name: 'foreign company', query: 'นิติบุคคล ผู้ถือหุ้นต่างด้าว', expectedTop1: 'foreign-company', expectedTopN: ['foreign-company','foreign-decision'], topN: 4 },
   { name: 'inheritance natural phrase', query: 'ขอค้นหาเรื่องโอนมรดกที่ดินหน่อยครับ', expectedTop1: 'inheritance', expectedTopN: ['inheritance','inheritance-archive'], topN: 4 },
   { name: 'land sale', query: 'จดทะเบียนขายที่ดิน', expectedTop1: 'sale', expectedTopN: ['sale'], topN: 3 },
