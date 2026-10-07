@@ -60,3 +60,33 @@ export const rankTitleItems = (items, query) => {
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(entry => entry.item);
 };
+
+
+const MATCH_LABELS = {
+  title: 'ชื่อเรื่อง',
+  path: 'หมวดหมู่',
+  snippet: 'เนื้อหา',
+};
+
+export const explainSearchMatch = (item, query) => {
+  const normalizedQuery = normalizeSearchText(query);
+  const tokens = tokenizeSearchQuery(query);
+  if (!normalizedQuery || tokens.length === 0) return [];
+
+  return [
+    ['title', item?.title],
+    ['path', (item?.path || []).join(' ')],
+    ['snippet', item?.snippet],
+  ]
+    .map(([field, value]) => ({
+      field,
+      label: MATCH_LABELS[field],
+      score: fieldScore(value, normalizedQuery, tokens, field === 'title' ? 4 : field === 'path' ? 2 : 1),
+    }))
+    .filter(match => match.score > 0)
+    .sort((a, b) => b.score - a.score || ['title', 'path', 'snippet'].indexOf(a.field) - ['title', 'path', 'snippet'].indexOf(b.field));
+};
+
+export const getSearchHighlightTerms = query =>
+  [...new Set([normalizeSearchText(query), ...tokenizeSearchQuery(query)].filter(term => term.length >= 2))]
+    .sort((a, b) => b.length - a.length);

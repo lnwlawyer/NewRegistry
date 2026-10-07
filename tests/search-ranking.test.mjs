@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { normalizeSearchText, tokenizeSearchQuery, scoreSearchItem, rankSearchItems, rankTitleItems } from '../src/search-ranking.js';
+import { normalizeSearchText, tokenizeSearchQuery, scoreSearchItem, rankSearchItems, rankTitleItems, explainSearchMatch, getSearchHighlightTerms } from '../src/search-ranking.js';
 
 assert.equal(normalizeSearchText('  คนต่างด้าว—ถือครองที่ดิน?  '), 'คนต่างด้าว ถือครองที่ดิน');
 const tokens = tokenizeSearchQuery('ช่วยค้นหา เรื่อง คนต่างด้าวถือครองที่ดินได้อย่างไร หน่อยครับ');
@@ -31,6 +31,12 @@ assert.deepEqual(tie.map(x => x.id), ['first','second'], 'ties must preserve sou
 
 assert.equal(scoreSearchItem(items[1], 'คืออะไรครับ'), 0, 'stop-word-only query must not create matches');
 assert.deepEqual(rankTitleItems([{title:'มรดกที่ดิน'},{title:'ขายที่ดิน'}], 'มรดก').map(x => x.title), ['มรดกที่ดิน']);
+
+const explained = explainSearchMatch(items[1], 'คนต่างด้าว ถือครองที่ดิน');
+assert.equal(explained[0].field, 'title');
+assert.ok(explained.some(x => x.field === 'title'));
+assert.ok(!explainSearchMatch(items[3], 'คนต่างด้าว').length);
+assert.deepEqual(getSearchHighlightTerms('คนต่างด้าว ถือครองที่ดิน'), ['คนต่างด้าว ถือครองที่ดิน', 'ถือครองที่ดิน', 'คนต่างด้าว', 'ถือครอง', 'ที่ดิน']);
 
 console.log('Search quality and relevance ranking guard: PASS');
 console.log('Verified Thai normalization/token expansion, weighted ranking, filtering, deterministic ties, and title-list search.');
