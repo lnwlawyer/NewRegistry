@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 const sw = fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
 
-assert.match(sw, /CACHE_NAME\s*=\s*['"]land-registry-v2['"]/, 'service worker cache version must advance from v1');
+assert.match(sw, /CACHE_NAME\s*=\s*['"]land-registry-v3['"]/, 'service worker cache version must advance from v1');
 assert.doesNotMatch(sw, /CACHE_NAME\s*=\s*['"]land-registry-v1['"]/, 'legacy v1 cache must not remain active');
-for (const file of ['./index.html', './manifest.json', './icon-192.png', './icon-512.png']) {
+for (const file of ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-192.png', './icon-maskable-512.png']) {
   assert.ok(sw.includes(`'${file}'`), `${file} must be included in the offline app shell`);
 }
 assert.match(sw, /addEventListener\(['"]activate['"]/, 'service worker must clean up old caches during activation');
