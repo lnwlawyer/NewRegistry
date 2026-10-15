@@ -2,32 +2,34 @@
   "name": "Land Registry App",
   "short_name": "Land Registry",
   "description": "ระบบสืบค้นคู่มือและข้อมูลทะเบียนที่ดิน",
-  "start_url": "./index.html",
+  "start_url": "/NewRegistry/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#006655",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/NewRegistry/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icon-512.png",
+      "src": "/NewRegistry/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "icon-maskable-192.png",
+      "src": "/NewRegistry/icon-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icon-maskable-512.png",
+      "src": "/NewRegistry/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/NewRegistry/",
+  "scope": "/NewRegistry/"
 }

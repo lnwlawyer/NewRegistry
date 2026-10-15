@@ -22,3 +22,11 @@ assert.match(sw, /url\.origin === self\.location\.origin/, 'runtime caching must
 
 console.log('PWA update safety regression guard: PASS');
 console.log('Verified versioned cleanup, network-first navigation, offline shell fallback, no forced activation, and same-origin runtime caching.');
+
+const manifest = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+assert.equal(manifest.id, '/NewRegistry/', 'installed PWA identity must use the GitHub Pages project path');
+assert.equal(manifest.start_url, '/NewRegistry/index.html', 'installed app must launch within the project path');
+assert.equal(manifest.scope, '/NewRegistry/', 'installed app scope must remain under the project path');
+for (const icon of manifest.icons) {
+  assert.ok(icon.src.startsWith('/NewRegistry/'), 'PWA icon URLs must resolve under the Pages project path');
+}
